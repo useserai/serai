@@ -1,14 +1,14 @@
 import copy
 import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 _PROVIDER = (os.environ.get("MODEL_PROVIDER") or "openai").strip().lower()
-_model: str | None = None
+_model: Optional[str] = None
 _client: Any = None
 
 
