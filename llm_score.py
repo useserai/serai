@@ -1,12 +1,12 @@
 import json
 import hashlib
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 from dotenv import load_dotenv
-from openai import OpenAI
+
+from llm_client import call_llm, get_model_name
 
 
 DEBUG = False
@@ -14,11 +14,9 @@ VERBOSE_LOGGING = False
 
 load_dotenv()
 
-client = OpenAI(timeout=30.0)
-
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_FILE = BASE_DIR / "llm_job_cache.json"
-MODEL_NAME = (os.environ.get("OPENAI_MODEL") or "gpt-4o-mini").strip() or "gpt-4o-mini"
+MODEL_NAME = get_model_name()
 JOB_PROMPT_VERSION = "job_v36"
 
 CANDIDATE_PROFILE_FILE = BASE_DIR / "candidate_data" / "candidate_profile.txt"
@@ -555,20 +553,7 @@ def llm_score_job(
     )
     verbose_print(f"[role eval] prompt length={len(prompt)}")
 
-    response = client.responses.create(
-        model=MODEL_NAME,
-        input=prompt,
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": "job_interest_score",
-                "strict": True,
-                "schema": get_json_schema(),
-            }
-        },
-    )
-
-    content = response.output_text
+    content = call_llm(prompt, get_json_schema(), "job_interest_score")
 
     try:
         result = json.loads(content)

@@ -150,19 +150,36 @@ cp .env.example .env
 Open `.env` and fill in your keys:
 
 ```
-OPENAI_API_KEY=sk-...
-BRAVE_API_KEY=...
-NOTION_API_KEY=ntn_...
+MODEL_PROVIDER=openai         # openai (default), anthropic, or google
+OPENAI_API_KEY=...            # if using OpenAI
+ANTHROPIC_API_KEY=...         # if using Anthropic
+GOOGLE_API_KEY...             # if using Google
+BRAVE_SEARCH_API_KEY=...
+NOTION_TOKEN=ntn_...
 NOTION_DATABASE_ID=...
 ```
 
+**Choosing a model provider:**
+
+Serai supports OpenAI and Anthropic (Claude) interchangeably. Set `MODEL_PROVIDER` in your `.env` to choose:
+
+| Provider | `MODEL_PROVIDER` | Default model | Approximate cost per company eval |
+|---|---|---|---|
+| OpenAI | `openai` | `gpt-4o-mini` | ~$0.01–0.02 |
+| Anthropic | `anthropic` | `claude-sonnet-4-6` | ~$0.01–0.03 |
+| Google Gemini | `google` | `gemini-2.5-flash` | ~$0.00–0.01 |
+
+Override the model with `OPENAI_MODEL`, `ANTHROPIC_MODEL`, or `GOOGLE_MODEL` respectively (e.g., `GOOGLE_MODEL=gemini-2.5-flash-lite` for lower cost, `ANTHROPIC_MODEL=claude-opus-4-7` for maximum quality).
+
 Where to get each key:
 
-| Service | Where to get it | Cost |
-|---|---|---|
-| OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | ~$0.01-0.02 per company eval (gpt-4o-mini) |
-| Brave Search | [brave.com/search/api](https://brave.com/search/api/) | Free tier covers typical usage |
-| Notion | [notion.so/my-integrations](https://www.notion.so/my-integrations) | Free plan works |
+| Service | Where to get it |
+|---|---|
+| OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| Anthropic | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
+| Google Gemini | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — generous free tier |
+| Brave Search | [brave.com/search/api](https://brave.com/search/api/) — free tier covers typical usage |
+| Notion | [notion.so/my-integrations](https://www.notion.so/my-integrations) — free plan works |
 
 You'll set up the Notion database and get the database ID in step 4.
 
@@ -177,7 +194,7 @@ Open `config.yaml` and customize:
 - Target locations (e.g., `["San Francisco, CA", "Remote"]`)
 - Minimum compensation
 - Target seniority levels
-- Model name (defaults to `gpt-4o-mini`)
+- Model name (controlled by `OPENAI_MODEL` or `ANTHROPIC_MODEL` in `.env`)
 
 Each setting has comments explaining what it does.
 
@@ -196,8 +213,16 @@ Create a new Notion database with these properties. Names and types must match e
 | Comp Min | Number | Minimum base compensation |
 | Comp Max | Number | Maximum base compensation |
 | Apply Score | Number | Weighted fit score (computed by Serai) |
+| Overall Interest | Number | LLM overall interest score |
+| Company Score | Number | Weighted company dimension score |
+| Role Interest | Number | LLM role interest score |
+| Strength Overlap | Number | LLM strength overlap score |
+| Level Fit | Number | LLM level fit score |
+| Job Confidence | Number | LLM confidence in the role evaluation |
 | Why Strong | Text | Top reasons this role scored well |
 | Main Reservation | Text | Primary concern or risk |
+| Source | Text | ATS source (e.g. greenhouse, ashby) |
+| Source Job ID | Text | Job ID from the source ATS |
 
 Then connect your Notion integration to the database:
 

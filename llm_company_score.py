@@ -7,15 +7,14 @@ from typing import Any, Dict, List
 
 import requests
 from dotenv import load_dotenv
-from openai import OpenAI
+
+from llm_client import call_llm, get_model_name
 
 load_dotenv()
 
-client = OpenAI()
-
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_FILE = Path("llm_company_cache.json")
-MODEL_NAME = (os.environ.get("OPENAI_MODEL") or "gpt-4o-mini").strip() or "gpt-4o-mini"
+MODEL_NAME = get_model_name()
 COMPANY_PROMPT_VERSION = "company_v15"
 BRAVE_SEARCH_API_KEY = os.getenv("BRAVE_SEARCH_API_KEY")
 PROMPT_TEMPLATE_FILE = BASE_DIR / "prompts" / "company_eval_prompt.txt"
@@ -496,20 +495,7 @@ def llm_score_company(company_name: str, candidate_profile: str) -> Dict[str, An
 
     prompt = build_prompt(company_name, candidate_profile, recent_signals)
 
-    response = client.responses.create(
-        model=MODEL_NAME,
-        input=prompt,
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": "company_interest_score",
-                "strict": True,
-                "schema": get_json_schema(),
-            }
-        },
-    )
-
-    content = response.output_text
+    content = call_llm(prompt, get_json_schema(), "company_interest_score")
 
     try:
         result = json.loads(content)

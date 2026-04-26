@@ -29,5 +29,16 @@ eval/results/*
 tmp/
 cache/
 
+# Runtime-generated data
+run_history.csv
+llm_job_cache.json
+llm_company_cache.json
+active_companies.json
+cache.json
+discovered_companies.json
+discovered_company_results.csv
+llm_eval_results.csv
+yc_discovered_job_results.csv
+
 #Cursor
 .cursorrules
