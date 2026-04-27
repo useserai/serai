@@ -1,0 +1,371 @@
+# Serai Configuration — Growth Product Manager Example
+# This file defines your candidate profile, target roles, company evaluation criteria,
+# and discovery/filtering thresholds. Customize every section to match your career goals.
+
+candidate:
+  # Personal info
+  name: "Maya Rodriguez"
+  email: "maya@example.com"
+  location: "San Francisco, CA"
+  timezone: "America/Los_Angeles"
+
+  # Your core strengths and background
+  strengths:
+    - "Growth systems: onboarding, trial conversion, and activation at scale (1M+ monthly signups)"
+    - "Experimentation infrastructure and A/B testing (Amplitude, Statsig, LaunchDarkly)"
+    - "Monetization: pricing, packaging, free-to-paid conversion, expansion revenue"
+    - "Platform thinking: multi-sided marketplaces, developer ecosystems, integrations"
+    - "Cross-functional leadership across engineering, design, data science, and marketing"
+
+# Target roles and archetypes
+# These control discovery patterns and role screening
+target_roles:
+  # Primary target roles (exact titles you're actively seeking)
+  titles:
+    - "Senior Product Manager"
+    - "Staff Product Manager"
+    - "Principal Product Manager"
+    - "Group Product Manager"
+    - "Product Lead"
+
+  # Archetypes map broad patterns to your target profile
+  # Serai's discovery patterns will match against these
+  archetypes:
+    - name: "Growth PM"
+      signals:
+        - "growth"
+        - "monetization"
+        - "conversion"
+        - "activation"
+        - "onboarding"
+        - "retention"
+        - "experimentation"
+
+    - name: "Platform PM"
+      signals:
+        - "platform"
+        - "developer platform"
+        - "ecosystem"
+        - "api"
+        - "integrations"
+        - "marketplace"
+
+    - name: "AI PM"
+      signals:
+        - "ai"
+        - "machine learning"
+        - "agents"
+        - "automation"
+        - "llm"
+
+    - name: "Core Product PM"
+      signals:
+        - "product manager"
+        - "product lead"
+        - "product"
+        - "b2b saas"
+
+    - name: "Adjacent Roles"
+      signals:
+        - "technical program manager"
+        - "product operations"
+        - "solutions"
+        - "strategy"
+        - "business operations"
+
+  # Roles worth considering even though not primary targets
+  adjacent_accepted:
+    - "Technical Program Manager"
+    - "Product Operations Lead"
+    - "Growth Lead"
+
+  # Broader searches for discovery sweep
+  broad_sweep_titles:
+    - "product manager"
+    - "senior product manager"
+    - "staff product manager"
+    - "principal product manager"
+    - "group product manager"
+    - "product lead"
+    - "growth product manager"
+
+# Company evaluation dimensions and anchors
+# These define what "good" looks like for your role search
+company_preferences:
+  # Six dimensions with weights that sum to 1.0
+  # Customize weights to reflect your priorities
+  dimensions:
+    moat_durability:
+      weight: 0.25
+      description: "Would this company survive if competitors could replicate its features overnight? Moats that count: distribution, proprietary data, network effects, workflow depth, brand, regulatory. Weak moats: generic horizontal productivity, thin AI wrappers."
+      anchors:
+        9-10:
+          - "Atlassian"
+          - "Figma"
+          - "Stripe"
+        7-8:
+          - "Notion"
+          - "Linear"
+        5-6:
+          - "Moderate moat, competitive but defensible"
+        3-4:
+          - "Weak moat, easily replicated feature set"
+        1-2:
+          - "No meaningful differentiation"
+
+    growth_trajectory:
+      weight: 0.20
+      description: "Revenue growth, user growth, product shipping velocity, funding trajectory. Consistent compounding beats spiky."
+      anchors:
+        9-10:
+          - "Hypergrowth — 3x+ YoY, category-defining momentum"
+        7-8:
+          - "Strong growth — ~2x YoY, hiring aggressively, shipping fast"
+        5-6:
+          - "Steady but plateauing — selective hiring, mature product"
+        3-4:
+          - "Flat or declining — hiring freeze, stagnation"
+        1-2:
+          - "Shrinking — layoffs, revenue decline 50%+"
+
+    product_culture:
+      weight: 0.20
+      description: "Does PM get to do PM work? Look for strong CPO or product-first founder, PMs owning outcomes, writing culture, real experimentation infrastructure. Do NOT infer product culture from revenue or company success — look for direct evidence."
+      anchors:
+        9-10:
+          - "Linear"
+          - "Stripe"
+          - "Figma"
+        7-8:
+          - "Healthy PM org — product-first leadership, PMs influence strategy"
+        5-6:
+          - "Mixed — some product influence, but sales or eng often overrides"
+        3-4:
+          - "Sales-led — PMs write specs for sales requests"
+        1-2:
+          - "No distinct PM function"
+
+    ai_leverage:
+      weight: 0.15
+      description: "Is AI a meaningful force multiplier on the product, or just a buzzword? Look for AI that improves the core product experience, not bolt-on features."
+      anchors:
+        9-10:
+          - "Harvey"
+          - "Anthropic"
+        7-8:
+          - "Ramp"
+          - "Notion AI"
+        5-6:
+          - "Credible AI roadmap but not yet shipped"
+        3-4:
+          - "AI in the pitch deck, not the product"
+        1-2:
+          - "No AI strategy"
+
+    leadership_quality:
+      weight: 0.10
+      description: "Founders with prior exits or recognized product taste. Credible exec hires. Low churn. Consistency between public statements and actions."
+      anchors:
+        9-10:
+          - "Exceptional founder-leaders with strong product vision"
+        7-8:
+          - "Credible leadership, product has a seat at the table"
+        5-6:
+          - "Mixed signals — some strong, some weak"
+        3-4:
+          - "Visible exec churn, contradictory public statements"
+        1-2:
+          - "Leadership instability, founders departed"
+
+    market_category:
+      weight: 0.10
+      description: "Does this category have a 10+ year tailwind?"
+      anchors:
+        9-10:
+          - "AI applications"
+          - "Fintech"
+          - "Developer tools"
+        7-8:
+          - "Healthy growth with real workflow pain to solve"
+        5-6:
+          - "Mature but stable, horizontal productivity"
+        3-4:
+          - "Commoditizing, low growth"
+        1-2:
+          - "Shrinking category"
+
+  # Hard disqualifiers: company categories to skip entirely
+  # These override all dimensional scores
+  hard_constraints:
+    disqualifiers:
+      - "Consultancy / agency"
+      - "Legacy enterprise sales org (Oracle, SAP, Salesforce)"
+      - "Consumer social / gaming"
+
+    # Location requirements
+    location_preference: "San Francisco Bay Area or Remote"
+
+    # Level requirements
+    level: "Senior PM, Staff PM, Principal PM, or Group PM"
+
+    # Minimum compensation
+    min_base_salary: 180000
+    min_total_comp: 250000
+
+  # Signals that should boost interest
+  attractive_signals:
+    - "Product-led growth motion (not purely sales-assisted)"
+    - "Experimentation infrastructure or A/B testing mentioned"
+    - "Small, high-leverage PM team with direct revenue impact"
+    - "Hiring multiple PMs (indicates growth, not backfill)"
+    - "Published product or growth blog"
+    - "Cross-functional collaboration with data science emphasized"
+
+# Discovery settings
+# Controls how Serai finds new companies
+discovery:
+  # Minimum company score to add to watchlist
+  watchlist_threshold: 6.0
+
+  # Minimum company score to promote to active registry
+  promotion_threshold: 7.0
+
+  # Title patterns for discovering companies
+  # Used when scanning ATS boards
+  title_patterns:
+    - "product manager"
+    - "senior product manager"
+    - "staff product manager"
+    - "principal product manager"
+    - "group product manager"
+    - "product lead"
+    - "growth product manager"
+    - "platform product manager"
+    - "ai product manager"
+
+  # Adjacent title keywords for broader discovery
+  adjacent_title_keywords:
+    - "growth"
+    - "monetization"
+    - "conversion"
+    - "activation"
+    - "onboarding"
+    - "experimentation"
+    - "product-led growth"
+    - "lifecycle"
+    - "retention"
+    - "platform"
+    - "ecosystem"
+
+# Filtering rules
+# Applied before role evaluation to skip obvious mismatches
+filters:
+  # Title filtering
+  title:
+    # Must match one of these (positive filter)
+    target:
+      - "product manager"
+      - "senior product manager"
+      - "staff product manager"
+      - "principal product manager"
+      - "group product manager"
+      - "product lead"
+      - "growth product manager"
+
+    # OK to match (adjacent titles)
+    adjacent:
+      - "technical program manager"
+      - "program manager"
+      - "product operations"
+      - "product marketing manager"
+      - "growth lead"
+
+    # Automatically reject these seniority levels
+    too_junior:
+      - "intern"
+      - "associate"
+      - "junior"
+      - "new grad"
+      - "apm"
+      - "associate product manager"
+
+    too_senior:
+      - "director"
+      - "vp"
+      - "vice president"
+      - "chief product officer"
+      - "cpo"
+      - "head of product"
+      - "svp"
+
+    # Reject if title contains any of these
+    negative:
+      - "sales"
+      - "recruiter"
+      - "marketer"
+      - "support"
+      - "consultant"
+      - "contractor"
+      - "analyst"
+      - "customer success"
+
+  # Compensation filtering
+  compensation:
+    # Reject if max comp below this
+    min_acceptable_max: 250000
+
+  # Geographic filtering
+  geo:
+    # Local region matches
+    local_region_terms:
+      - "san francisco"
+      - "sf, ca"
+      - "san jose"
+      - "santa clara"
+      - "mountain view"
+      - "palo alto"
+      - "menlo park"
+      - "redwood city"
+      - "sunnyvale"
+      - "bay area"
+
+    # Remote-friendly terms
+    remote_positive_terms:
+      - "remote"
+      - "work from home"
+      - "distributed"
+      - "anywhere"
+
+    # Broad pass terms
+    remote_broad_pass_terms:
+      - "united states"
+      - "usa"
+      - "us-only"
+      - "california"
+
+    # Restricted regions (skip if mentioned)
+    remote_restricted_terms:
+      - "emea"
+      - "europe"
+      - "india"
+      - "canada"
+      - "uk"
+      - "apac"
+
+    # Non-local cities to reject (unless remote-friendly)
+    non_local_city_terms:
+      - "new york"
+      - "seattle"
+      - "austin"
+      - "boston"
+      - "chicago"
+      - "los angeles"
+      - "london"
+
+    # Hybrid mentions
+    hybrid_terms:
+      - "hybrid"
+      - "flexible"
+
+    # Regex pattern for splitting location fields
+    location_split_pattern: "[;/|]|\\s+or\\s+"

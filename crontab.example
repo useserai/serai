@@ -1,9 +1,0 @@
-# Serai — recurring job scans
-# Add these to your crontab with: crontab -e
-# Adjust paths to match where you cloned the repo.
-
-# Company discovery — runs daily at 7 AM, includes role scoring for new companies
-0 7 * * * cd /path/to/serai && /path/to/python run_company_discovery.py >> logs/discovery.log 2>&1
-
-# Role scan — runs every 3 hours from 10 AM to 10 PM (skips 7 AM, discovery covers it)
-0 10,13,16,19,22 * * * cd /path/to/serai && /path/to/python eval_llm_scoring.py >> logs/eval.log 2>&1

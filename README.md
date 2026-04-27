@@ -206,7 +206,7 @@ You'll set up the Notion database and get the database ID in step 5.
 ### 3. Configure your candidate profile
 
 ```bash
-cp config.example.yaml config.yaml
+cp examples/config.example.yaml config.yaml
 ```
 
 Open `config.yaml` and customize the candidate section:
@@ -220,6 +220,8 @@ Open `config.yaml` and customize the candidate section:
 - Hard constraints (location, comp, level)
 
 The company_preferences section defines your evaluation criteria. The discovery section controls discovery thresholds. The filters section handles title matching, location, and compensation screening. Each setting has comments explaining what it does.
+
+The default example is configured for an infrastructure engineer. For other roles, check `examples/` — there's a PM variant (`config.example.pm.yaml` + `profile.example.pm.md`) you can use as a starting point instead.
 
 ### 4. Add your resume
 
