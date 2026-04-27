@@ -1,0 +1,356 @@
+# Serai Configuration
+# This file defines your candidate profile, target roles, company evaluation criteria,
+# and discovery/filtering thresholds. Customize every section to match your career goals.
+
+candidate:
+  # Personal info
+  name: "Jordan Chen"
+  email: "jordan@example.com"
+  location: "Seattle, WA"
+  timezone: "America/Los_Angeles"
+  
+  # Your core strengths and background
+  strengths:
+    - "Distributed systems architecture at scale (100K+ RPS)"
+    - "Platform engineering and developer tooling"
+    - "Cloud infrastructure (AWS, Kubernetes, Infrastructure-as-Code)"
+    - "Technical leadership and cross-team collaboration"
+    - "SRE, observability, and incident response"
+
+# Target roles and archetypes
+# These control discovery patterns and role screening
+target_roles:
+  # Primary target roles (exact titles you're actively seeking)
+  titles:
+    - "Staff Infrastructure Engineer"
+    - "Principal Infrastructure Engineer"
+    - "Senior Platform Engineer"
+    - "Staff Platform Engineer"
+    - "Engineering Manager - Infrastructure"
+  
+  # Archetypes map broad patterns to your target profile
+  # Serai's discovery patterns will match against these
+  archetypes:
+    - name: "Platform Engineer"
+      signals:
+        - "developer platform"
+        - "internal tools"
+        - "ci/cd"
+        - "devops"
+        - "infrastructure"
+    
+    - name: "DevOps / SRE"
+      signals:
+        - "sre"
+        - "site reliability"
+        - "devops"
+        - "infrastructure"
+        - "systems reliability"
+    
+    - name: "Backend Systems"
+      signals:
+        - "backend"
+        - "backend engineer"
+        - "systems engineer"
+        - "distributed systems"
+        - "services"
+    
+    - name: "Data Infrastructure"
+      signals:
+        - "data infrastructure"
+        - "data platform"
+        - "data engineering"
+        - "data systems"
+        - "analytics engineering"
+    
+    - name: "Cloud Architecture"
+      signals:
+        - "cloud architect"
+        - "aws architect"
+        - "kubernetes"
+        - "infrastructure architect"
+        - "cloud engineer"
+    
+    - name: "AI Infrastructure"
+      signals:
+        - "ml infrastructure"
+        - "ml ops"
+        - "ai infrastructure"
+        - "training infrastructure"
+        - "inference"
+  
+  # Roles worth considering even though not primary targets
+  adjacent_accepted:
+    - "Staff Software Engineer"
+    - "Engineering Lead"
+    - "Technical Director"
+  
+  # Broader searches for discovery sweep
+  broad_sweep_titles:
+    - "infrastructure engineer"
+    - "platform engineer"
+    - "systems engineer"
+    - "devops engineer"
+    - "sre"
+
+# Company evaluation dimensions and anchors
+# These define what "good" looks like for your role search
+company_preferences:
+  # Six dimensions with weights that sum to 1.0
+  # Customize weights to reflect your priorities
+  dimensions:
+    engineering_depth:
+      weight: 0.30
+      description: "Does this company solve genuinely hard technical problems? Look for published engineering blogs, open-source contributions, infrastructure scale, and evidence of custom-built systems vs. managed services."
+      anchors:
+        9-10:
+          - "Stripe"
+          - "Anthropic"
+          - "Cloudflare"
+        7-8:
+          - "Ramp"
+          - "Linear"
+          - "Figma"
+        5-6:
+          - "Modern, competent cloud-native stack"
+        3-4:
+          - "Standard CRUD applications, minimal complexity"
+        1-2:
+          - "No meaningful technical challenges"
+    
+    moat_durability:
+      weight: 0.20
+      description: "Does this company have structural advantages that compound? Look for data moats, network effects, protocol-level lock-in, and ecosystem ownership. For infra companies especially important."
+      anchors:
+        9-10:
+          - "Stripe"
+          - "Cloudflare"
+          - "Databricks"
+        7-8:
+          - "Datadog"
+          - "Figma"
+        5-6:
+          - "Moderate moat, competitive but defensible"
+        3-4:
+          - "Weak moat, commoditizing"
+        1-2:
+          - "No meaningful differentiation"
+    
+    growth_trajectory:
+      weight: 0.20
+      description: "Is this company scaling in a way that creates interesting engineering problems? Growth means novel technical challenges. Stagnation means maintenance mode."
+      anchors:
+        9-10:
+          - "Anthropic"
+          - "Harvey"
+        7-8:
+          - "Ramp"
+          - "Databricks"
+        5-6:
+          - "Steady growth, stable"
+        3-4:
+          - "Flat or declining"
+        1-2:
+          - "Shrinking, cutting headcount"
+    
+    ai_leverage:
+      weight: 0.15
+      description: "Is AI creating interesting infrastructure challenges? Look for training infrastructure, inference optimization, data pipelines at scale. 'Uses AI' is different from 'AI creates hard infrastructure problems.'"
+      anchors:
+        9-10:
+          - "Anthropic"
+          - "OpenAI"
+          - "Databricks"
+        7-8:
+          - "Harvey"
+          - "Ramp"
+        5-6:
+          - "Some AI workloads, not core challenge"
+        3-4:
+          - "AI is a feature, not infrastructure concern"
+        1-2:
+          - "No AI relevance"
+    
+    leadership_quality:
+      weight: 0.10
+      description: "Does engineering leadership have credibility? Look for technical founders, respected CTOs/VPs of Engineering. Does leadership understand infrastructure investment as a long-term bet?"
+      anchors:
+        9-10:
+          - "Exceptional technical leadership, strong eng culture"
+        7-8:
+          - "Credible technical leaders, engineering has a seat"
+        5-6:
+          - "Mixed signals"
+        3-4:
+          - "Non-technical leadership making infra decisions"
+        1-2:
+          - "Engineering is a cost center"
+    
+    market_category:
+      weight: 0.05
+      description: "Is the category itself growing in a way that sustains infrastructure investment? Categories with moats require ongoing technical investment."
+      anchors:
+        9-10:
+          - "Cloud infrastructure"
+          - "AI"
+          - "Fintech"
+        7-8:
+          - "Developer tools"
+          - "Security"
+        5-6:
+          - "Mature but stable"
+        3-4:
+          - "Commoditizing"
+        1-2:
+          - "Shrinking"
+  
+  # Hard disqualifiers: company categories to skip entirely
+  # These override all dimensional scores
+  hard_constraints:
+    disqualifiers:
+      - "Consultancy / agency"
+      - "Legacy enterprise (non-technical, slow-moving)"
+      - "Consumer social / gaming"
+      - "Fully outsourced infrastructure"
+    
+    # Location requirements
+    location_preference: "Remote or Seattle-area"
+    
+    # Level requirements
+    level: "Senior Engineer, Staff Engineer, or Principal Engineer"
+    
+    # Minimum compensation
+    min_base_salary: 220000
+    min_total_comp: 350000
+  
+  # Signals that should boost interest
+  attractive_signals:
+    - "Recently raised Series C or later"
+    - "Hiring multiple infrastructure engineers"
+    - "Published engineering blog"
+    - "Open source infrastructure projects"
+    - "Kubernetes / EKS early adopter"
+    - "Data-driven infrastructure decisions"
+
+# Discovery settings
+# Controls how Serai finds new companies
+discovery:
+  # Minimum company score to add to watchlist
+  watchlist_threshold: 6.0
+  
+  # Minimum company score to promote to active registry
+  promotion_threshold: 7.0
+  
+  # Title patterns for discovering companies
+  # Used when scanning ATS boards
+  title_patterns:
+    - "infrastructure engineer"
+    - "platform engineer"
+    - "systems engineer"
+    - "devops engineer"
+    - "sre"
+    - "site reliability engineer"
+    - "cloud engineer"
+    - "backend engineer"
+  
+  # Adjacent title keywords for broader discovery
+  adjacent_title_keywords:
+    - "engineering manager"
+    - "technical lead"
+    - "architect"
+
+# Filtering rules
+# Applied before role evaluation to skip obvious mismatches
+filters:
+  # Title filtering
+  title:
+    # Must match one of these (positive filter)
+    target:
+      - "infrastructure"
+      - "platform engineer"
+      - "systems engineer"
+      - "devops"
+      - "sre"
+      - "site reliability"
+      - "backend engineer"
+    
+    # OK to match (adjacent titles)
+    adjacent:
+      - "engineering manager"
+      - "engineering lead"
+      - "technical director"
+      - "architect"
+    
+    # Automatically reject these seniority levels
+    too_junior:
+      - "intern"
+      - "junior"
+      - "associate"
+      - "new grad"
+    
+    too_senior:
+      - "vp engineering"
+      - "director"
+      - "chief technology"
+      - "cto"
+    
+    # Reject if title contains any of these
+    negative:
+      - "sales"
+      - "recruiter"
+      - "marketer"
+      - "support"
+      - "consultant"
+      - "contractor"
+      - "analyst"
+  
+  # Compensation filtering
+  compensation:
+    # Reject if max comp below this
+    min_acceptable_max: 220000
+  
+  # Geographic filtering
+  geo:
+    # Local region matches (prefer remote, but will consider)
+    local_region_terms:
+      - "seattle"
+      - "seattle, wa"
+      - "san francisco"
+      - "bay area"
+      - "sf"
+    
+    # Remote-friendly terms (prefer these)
+    remote_positive_terms:
+      - "remote"
+      - "work from home"
+      - "distributed"
+      - "anywhere"
+    
+    # Broad pass terms (US-wide is acceptable)
+    remote_broad_pass_terms:
+      - "united states"
+      - "usa"
+      - "us-only"
+    
+    # Restricted regions (skip if mentioned)
+    remote_restricted_terms:
+      - "emea"
+      - "europe only"
+      - "uk only"
+      - "apac only"
+      - "canada"
+    
+    # Non-local cities to reject (unless remote-friendly)
+    non_local_city_terms:
+      - "new york"
+      - "austin"
+      - "los angeles"
+      - "london"
+    
+    # Hybrid mentions (slightly less preferred, but OK)
+    hybrid_terms:
+      - "hybrid"
+      - "flexible"
+    
+    # Regex pattern for splitting location fields
+    location_split_pattern: "[;/|]|\\s+or\\s+"

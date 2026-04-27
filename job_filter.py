@@ -1,12 +1,11 @@
 print("LOADING JOB FILTER FILE")
 
 import re
-from pathlib import Path
 
-from job_filter_config import load_job_filter_config
+import config_loader
 
 # Loaded once; override via === JOB FILTER CONFIG === JSON in candidate_data/candidate_profile.txt
-_FILTER_CONFIG = load_job_filter_config(Path("candidate_data/candidate_profile.txt"))
+_FILTER_CONFIG = config_loader.get_filter_config()
 
 DEBUG_GEO = False
 
@@ -29,6 +28,7 @@ def score_title_affinity(title):
             "reason": "title_reject:too_senior",
             "bucket": "reject",
         }
+    
 
     if any(phrase in title for phrase in _FILTER_CONFIG["target_titles"]):
         return {
@@ -44,6 +44,14 @@ def score_title_affinity(title):
             "score": 6,
             "reason": "title_soft_pass:adjacent_title",
             "bucket": "adjacent",
+        }
+
+    if any(word in title for word in _FILTER_CONFIG["negative_words"]):
+        return {
+            "passed": False,
+            "score": 0,
+            "reason": "title_reject:negative_word",
+            "bucket": "reject",
         }
 
     return {

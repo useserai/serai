@@ -128,27 +128,41 @@ def build_properties(job):
         "Comp Max": {
             "number": comp_max
         },
-        "Apply Score": {
-            "number": safe_number(job.get("apply_score"))
+        "Screen Score": {
+            "number": safe_number(job.get("screen_score"))
         },
-        "Overall Interest": {
-            "number": safe_number(job.get("overall_interest_score"))
+        "Deep Eval Score": {
+            "number": safe_number(job.get("deep_eval_score"))
         },
         "Company Score": {
             "number": safe_number(job.get("company_interest_score"))
         },
-        "Role Interest": {
-            "number": safe_number(job.get("role_interest"))
-        },
-        "Strength Overlap": {
-            "number": safe_number(job.get("strength_overlap"))
+        "Resume Match": {
+            "number": safe_number(job.get("resume_match_score"))
         },
         "Level Fit": {
-            "number": safe_number(job.get("level_fit"))
+            "number": safe_number(job.get("level_fit_score"))
         },
-        "Job Confidence": {
-            "number": safe_number(job.get("job_confidence"))
+        "Archetype": {
+            "select": {
+                "name": truncate_text(job.get("archetype", "Other"), 100)
+            }
         },
+        "Screen Route": {
+            "select": {
+                "name": job.get("screen_route", "Skip")
+            }
+        },
+        "Legitimacy": {
+            "select": {
+                "name": job.get("legitimacy_tier", "")
+            }
+        } if job.get("legitimacy_tier") else {},
+        "Apply Urgency": {
+            "select": {
+                "name": job.get("apply_urgency", "")
+            }
+        } if job.get("apply_urgency") else {},
         "Why Strong": {
             "rich_text": [
                 {
@@ -186,6 +200,9 @@ def build_properties(job):
             ] if job.get("source_job_id") else []
         },
     }
+
+    # Remove empty property dicts (from conditional Legitimacy/Apply Urgency)
+    properties = {k: v for k, v in properties.items() if v}
 
     return properties
 

@@ -1,6 +1,7 @@
 import csv
 from pathlib import Path
 from datetime import datetime, timezone
+from typing import Optional
 
 print("RUNNING eval_llm_scoring.py")
 
@@ -15,19 +16,15 @@ from normalize import (
 )
 from job_filter import fast_filter_title_geo, check_comp
 from llm_company_score import llm_score_company
-from llm_score import llm_score_job
+from role_eval import stage1_screen, stage2_deep_eval
 from job_cache import load_cache, save_cache, upsert_cache_job, attach_first_seen_to_job
 from job_freshness import compute_freshness
 from notion_helper import upsert_eval_job
 from run_metrics import append_run_metric
-from role_title_gates import (
-    load_unknown_bucket_title_substrings,
-    role_title_matches_exclusion_substrings,
-)
 import company_registry
+import config_loader
 
-ROLE_INTEREST_THRESHOLD = 7.0
-MAX_JOBS_PER_COMPANY = 8
+MAX_JOBS_PER_COMPANY = 100
 
 print(f"=== RUN START {datetime.now()} ===")
 print("EVAL FILE:", Path(__file__).resolve())
@@ -36,19 +33,7 @@ print("REGISTRY COUNT:", len(company_registry.COMPANY_REGISTRY))
 print("REGISTRY SLUGS:", [c["company_slug"] for c in company_registry.COMPANY_REGISTRY if c.get("enabled", True)])
 
 
-def load_text_file(path: str) -> str:
-    try:
-        return Path(path).read_text(encoding="utf-8")
-    except Exception as e:
-        print(f"Error loading file {path}: {e}")
-        return ""
-
-
-CANDIDATE_PROFILE_PATH = Path("candidate_data/candidate_profile.txt")
-CANDIDATE_PROFILE = load_text_file(str(CANDIDATE_PROFILE_PATH))
-UNKNOWN_BUCKET_TITLE_SUBSTRINGS = load_unknown_bucket_title_substrings(
-    CANDIDATE_PROFILE_PATH
-)
+CANDIDATE_PROFILE = config_loader.get_candidate_prompt()
 
 
 def to_float(value, default=0.0):
@@ -58,158 +43,8 @@ def to_float(value, default=0.0):
         return default
 
 
-def role_fit_score(role: dict) -> float:
-    """
-    Role-fit score intentionally excludes company attractiveness.
-    This is the score that should govern whether unknown-bucket roles survive.
-    """
-    return round(
-        to_float(role.get("strength_overlap")) * 0.40
-        + to_float(role.get("role_interest")) * 0.25
-        + to_float(role.get("level_fit")) * 0.20
-        + to_float(role.get("job_confidence")) * 0.10
-        + to_float(role.get("title_score")) * 0.05,
-        2,
-    )
-
-
-def compute_apply_score(role: dict) -> float:
-    """
-    Keep an overall prioritization score for ranking, but make role fit dominant.
-    Company fit is intentionally de-emphasized.
-    """
-    return round(
-        to_float(role.get("strength_overlap")) * 0.35
-        + to_float(role.get("role_interest")) * 0.25
-        + to_float(role.get("level_fit")) * 0.15
-        + to_float(role.get("job_confidence")) * 0.10
-        + to_float(role.get("overall_interest_score")) * 0.05
-        + to_float(role.get("title_score")) * 0.05
-        + to_float(role.get("company_interest_score")) * 0.05,
-        2,
-    )
-
-
-def is_apply_worthy(role: dict) -> bool:
-    title_bucket = role.get("title_bucket", "unknown")
-
-    if title_bucket == "core_pm":
-        return (
-            to_float(role.get("strength_overlap")) >= 8
-            and to_float(role.get("role_interest")) >= 7
-            and to_float(role.get("level_fit")) >= 7
-            and to_float(role.get("overall_interest_score")) >= 7
-            and compute_apply_score(role) >= 7.5
-        )
-
-    if title_bucket == "adjacent":
-        return (
-            to_float(role.get("strength_overlap")) >= 8
-            and to_float(role.get("role_interest")) >= 7
-            and to_float(role.get("level_fit")) >= 7
-            and to_float(role.get("job_confidence")) >= 7
-            and role_fit_score(role) >= 7.6
-            and compute_apply_score(role) >= 7.4
-        )
-
-    # unknown title bucket: need extraordinary role-fit evidence
-    return (
-        not role_title_matches_exclusion_substrings(role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS)
-        and to_float(role.get("strength_overlap")) >= 8
-        and to_float(role.get("role_interest")) >= 8
-        and to_float(role.get("level_fit")) >= 8
-        and to_float(role.get("job_confidence")) >= 8
-        and role_fit_score(role) >= 8.0
-        and compute_apply_score(role) >= 7.8
-    )
-
-
-def is_network_worthy(role: dict) -> bool:
-    title_bucket = role.get("title_bucket", "unknown")
-
-    if title_bucket == "core_pm":
-        return (
-            to_float(role.get("overall_interest_score")) >= 7
-            and compute_apply_score(role) >= 7.0
-            and (
-                to_float(role.get("strength_overlap")) >= 7
-                or to_float(role.get("role_interest")) >= 8
-                or to_float(role.get("level_fit")) >= 8
-            )
-        )
-
-    if title_bucket == "adjacent":
-        return (
-            to_float(role.get("overall_interest_score")) >= 6.8
-            and to_float(role.get("job_confidence")) >= 6.5
-            and role_fit_score(role) >= 7.0
-            and (
-                to_float(role.get("strength_overlap")) >= 7
-                or to_float(role.get("role_interest")) >= 7.5
-                or to_float(role.get("level_fit")) >= 7.5
-            )
-        )
-
-    # unknown title bucket: must survive on role fit alone, not company fit
-    if role_title_matches_exclusion_substrings(role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS):
-        return False
-
-    return (
-        to_float(role.get("job_confidence")) >= 7
-        and to_float(role.get("strength_overlap")) >= 8
-        and to_float(role.get("role_interest")) >= 7.5
-        and to_float(role.get("level_fit")) >= 7.5
-        and role_fit_score(role) >= 7.6
-    )
-
-
-def assign_final_routes(scored_roles: list[dict]) -> list[dict]:
-    if not scored_roles:
-        return scored_roles
-
-    for role in scored_roles:
-        role["role_fit_score"] = role_fit_score(role)
-        role["apply_score"] = compute_apply_score(role)
-
-    ranked = sorted(
-        scored_roles,
-        key=lambda r: (
-            to_float(r.get("apply_score")),
-            to_float(r.get("role_fit_score")),
-            to_float(r.get("strength_overlap")),
-            to_float(r.get("role_interest")),
-            to_float(r.get("level_fit")),
-        ),
-        reverse=True,
-    )
-
-    for idx, role in enumerate(ranked, start=1):
-        role["company_rank"] = idx
-
-    top_role = ranked[0]
-
-    if is_apply_worthy(top_role):
-        top_role["final_route"] = "Apply"
-    elif is_network_worthy(top_role):
-        top_role["final_route"] = "Network"
-    else:
-        top_role["final_route"] = "Skip"
-
-    for role in ranked[1:]:
-        prelim = role.get("preliminary_route", "Skip")
-
-        if is_network_worthy(role) and prelim in {"Apply", "Network", "Review"}:
-            role["final_route"] = "Network"
-        elif prelim == "Review":
-            role["final_route"] = "Review"
-        else:
-            role["final_route"] = "Skip"
-
-    return ranked
-
-
-def build_output_row(job: dict, company_result: dict, llm_result: dict) -> dict:
-    return {
+def build_output_row(job: dict, company_result: dict, stage1: dict, stage2: Optional[dict]) -> dict:
+    row = {
         "company": job.get("company", ""),
         "title": job.get("title", ""),
         "location": job.get("location", ""),
@@ -220,54 +55,65 @@ def build_output_row(job: dict, company_result: dict, llm_result: dict) -> dict:
         "comp_max": job.get("comp_max", ""),
         "compensation": job.get("compensation", ""),
         "company_interest_score": company_result.get("company_interest_score", ""),
-        "disqualifier_flags": " | ".join(llm_result.get("disqualifier_flags",[])),
-        "role_interest": llm_result.get("role_interest", ""),
-        "overall_interest_score": llm_result.get("overall_interest_score", ""),
-        "strength_overlap": llm_result.get("strength_overlap", ""),
-        "level_fit": llm_result.get("level_fit", ""),
-        "job_confidence": llm_result.get("job_confidence", ""),
-        "title_score": llm_result.get("title_score", ""),
-        "title_bucket": llm_result.get("title_bucket", ""),
-        "preliminary_route": llm_result.get("preliminary_route", ""),
-        "final_route": llm_result.get("final_route", ""),
-        "company_rank": llm_result.get("company_rank", ""),
-        "apply_score": llm_result.get("apply_score", ""),
-        "alert_priority": llm_result.get("alert_priority", ""),
-        "differentiation_reason": llm_result.get("differentiation_reason", ""),
-        "main_reservation": llm_result.get("main_reservation", ""),
+        "archetype": stage1.get("archetype", ""),
+        "resume_match_score": stage1.get("resume_match_score", ""),
+        "level_fit_score": stage1.get("level_fit_score", ""),
+        "screen_score": stage1.get("screen_score", ""),
+        "screen_route": stage1.get("screen_route", ""),
+        "gap_severity": stage1.get("gap_severity", ""),
+        "differentiation_reason": stage1.get("differentiation_reason", ""),
+        "main_reservation": stage1.get("main_reservation", ""),
         "first_seen_at": job.get("first_seen_at", ""),
         "first_seen_age_days": job.get("first_seen_age_days", ""),
         "freshness_bucket": job.get("freshness_bucket", ""),
     }
+    if stage2:
+        row.update({
+            "deep_eval_score": stage2.get("deep_eval_score", ""),
+            "final_route": stage2.get("final_route", ""),
+            "legitimacy_tier": stage2.get("legitimacy_tier", ""),
+            "apply_urgency": stage2.get("apply_urgency", ""),
+            "comp_assessment": stage2.get("comp_assessment", ""),
+        })
+    else:
+        row.update({
+            "deep_eval_score": "",
+            "final_route": stage1.get("screen_route", "Skip"),
+            "legitimacy_tier": "",
+            "apply_urgency": "",
+            "comp_assessment": "",
+        })
+    return row
 
 
-def compute_alert_priority(role: dict) -> str:
-    final_route = role.get("final_route", "")
-    freshness_bucket = role.get("freshness_bucket", "")
-    apply_score = to_float(role.get("apply_score"))
-    company_interest = to_float(role.get("company_interest_score"))
-
-    if final_route == "Apply" and freshness_bucket in {"new_today", "new_3d"}:
-        return "high"
-
-    if final_route == "Apply":
-        return "medium"
-
-    if (
-        final_route == "Network"
-        and freshness_bucket in {"new_today", "new_3d"}
-        and company_interest >= 7
-        and apply_score >= 7.0
-    ):
-        return "medium"
-
-    if final_route == "Network":
-        return "low"
-
-    if final_route == "Review":
-        return "low"
-
-    return "none"
+def build_notion_payload(job: dict, company_result: dict, stage1: dict, stage2: Optional[dict]) -> dict:
+    """Merge job + stage results into a flat dict for notion_helper.build_properties()."""
+    payload = {
+        **job,
+        "company_interest_score": company_result.get("company_interest_score"),
+        "archetype": stage1.get("archetype", "Other"),
+        "resume_match_score": stage1.get("resume_match_score"),
+        "level_fit_score": stage1.get("level_fit_score"),
+        "screen_score": stage1.get("screen_score"),
+        "screen_route": stage1.get("screen_route", "Skip"),
+        "differentiation_reason": stage1.get("differentiation_reason", ""),
+        "main_reservation": stage1.get("main_reservation", ""),
+    }
+    if stage2:
+        payload.update({
+            "deep_eval_score": stage2.get("deep_eval_score"),
+            "final_route": stage2.get("final_route", "Do Not Apply"),
+            "legitimacy_tier": stage2.get("legitimacy_tier"),
+            "apply_urgency": stage2.get("apply_urgency"),
+        })
+    else:
+        # Stage 1 only — map screen_route to final_route for Notion
+        route = stage1.get("screen_route", "Skip")
+        payload["final_route"] = route if route == "Skip" else route
+        payload["deep_eval_score"] = None
+        payload["legitimacy_tier"] = None
+        payload["apply_urgency"] = None
+    return payload
 
 
 def main():
@@ -280,14 +126,10 @@ def main():
         "active_companies": len([c for c in COMPANY_REGISTRY if c.get("enabled", True)]),
         "companies_checked": 0,
         "jobs_fetched": 0,
-        "jobs_evaluated": 0,
-        "apply_writes": 0,
-        "network_writes": 0,
-        "review_writes": 0,
+        "jobs_screened": 0,
+        "stage2_evaluated": 0,
+        "notion_writes": 0,
         "skip_count": 0,
-        "high_role_interest_but_skip": 0,
-        "discovery_candidates": 0,
-        "discovery_promoted": 0,
         "notes": "",
     }
 
@@ -312,12 +154,8 @@ def main():
                     continue
 
                 company_result = llm_score_company(company_slug, CANDIDATE_PROFILE)
-                scored_roles_for_company = []
 
-                for raw_job in raw_jobs:
-                    if len(scored_roles_for_company) >= MAX_JOBS_PER_COMPANY:
-                        break
-
+                for raw_job in raw_jobs[:MAX_JOBS_PER_COMPANY]:
                     job = normalize_job(raw_job, company_config)
 
                     filter_result = fast_filter_title_geo(job)
@@ -359,78 +197,40 @@ def main():
                     if not comp_result["passed"]:
                         continue
 
-                    metrics["jobs_evaluated"] += 1
-                    llm_result = llm_score_job(job, CANDIDATE_PROFILE, company_result)
+                    # ---- Stage 1: Screen ----
+                    metrics["jobs_screened"] += 1
+                    stage1 = stage1_screen(job, CANDIDATE_PROFILE, company_result)
 
-                    combined = {
-                        **job,
-                        **llm_result,
-                        "title_score": filter_result.get("title_score"),
-                        "title_bucket": filter_result.get("title_bucket"),
-                    }
-                    scored_roles_for_company.append(combined)
+                    screen_route = stage1.get("screen_route", "Skip")
 
-                if not scored_roles_for_company:
-                    continue
-
-                ranked_roles = assign_final_routes(scored_roles_for_company)
-
-                company_disqualifiers = company_result.get("disqualifier_flags", []) or []
-
-                if company_disqualifiers:
-                    for role in ranked_roles:
-                        role["final_route"] = "Skip"
-                        role["main_reservation"] = (
-                            f"Candidate disqualifier: {','.join(company_disqualifiers)}"
-                        )
-
-                for role in ranked_roles:
-                    role["alert_priority"] = compute_alert_priority(role)
-
-                    if role["final_route"] == "Skip":
+                    if screen_route == "Skip":
                         metrics["skip_count"] += 1
-                        if to_float(role.get("role_interest")) >= ROLE_INTEREST_THRESHOLD:
-                            metrics["high_role_interest_but_skip"] += 1
+                        rows.append(build_output_row(job, company_result, stage1, None))
                         continue
 
-                    # Final safety gate before Notion write:
-                    # unknown title bucket must show unusually strong role-fit evidence.
-                    if (
-                        role.get("title_bucket", "unknown") == "unknown"
-                        and (
-                            role_title_matches_exclusion_substrings(
-                                role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS
-                            )
-                            or to_float(role.get("role_fit_score")) < 7.6
-                            or to_float(role.get("job_confidence")) < 7
-                        )
-                    ):
-                        role["final_route"] = "Skip"
-                        role["main_reservation"] = (
-                            role.get("main_reservation")
-                            or "Unknown title-bucket role did not show strong enough job-fit evidence."
-                        )
+                    # ---- Stage 2: Deep Eval (Apply / Apply with Caution only) ----
+                    metrics["stage2_evaluated"] += 1
+                    stage2 = stage2_deep_eval(job, CANDIDATE_PROFILE, company_result, stage1)
+
+                    final_route = stage2.get("final_route", "Do Not Apply")
+
+                    if final_route == "Do Not Apply":
                         metrics["skip_count"] += 1
+                        rows.append(build_output_row(job, company_result, stage1, stage2))
                         continue
 
+                    # ---- Write to Notion (Strong Apply / Apply only) ----
                     try:
-                        upsert_eval_job(role)
-                        print(f"→ Notion: {role['company']} | {role['title']} | {role['final_route']}")
-
-                        if role["final_route"] == "Apply":
-                            metrics["apply_writes"] += 1
-                        elif role["final_route"] == "Network":
-                            metrics["network_writes"] += 1
-                        elif role["final_route"] == "Review":
-                            metrics["review_writes"] += 1
-
+                        notion_payload = build_notion_payload(job, company_result, stage1, stage2)
+                        upsert_eval_job(notion_payload)
+                        metrics["notion_writes"] += 1
+                        print(f"→ Notion: {job['company']} | {job['title']} | {final_route}")
                     except Exception as e:
-                        msg = f"Notion error for {role.get('company')} | {role.get('title')}: {e}"
+                        msg = f"Notion error for {job.get('company')} | {job.get('title')}: {e}"
                         print(msg)
                         error_messages.append(msg)
 
-                for role in ranked_roles:
-                    rows.append(build_output_row(role, company_result, role))
+                    rows.append(build_output_row(job, company_result, stage1, stage2))
 
             except Exception as e:
                 msg = f"Error processing {company_slug}: {e}"

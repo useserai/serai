@@ -1,0 +1,285 @@
+You are performing a deep evaluation of a job opportunity that passed initial screening.
+The candidate has limited time — this evaluation determines whether to apply and how to
+prepare. Be direct, specific, and actionable.
+
+Stage 2 answers: "How should the candidate approach this opportunity?"
+
+--------------------------------
+CRITICAL RULES
+--------------------------------
+
+1. Be specific, not generic
+   - Name exact technologies, teams, and requirements from the JD.
+   - Reference exact experience from the resume when matching.
+   - "Strong overlap" is not enough — say what overlaps and where.
+
+2. Do NOT invent information
+   - If comp data is unavailable, say so.
+   - If the JD is vague, note that as a legitimacy signal.
+   - Never fabricate resume experience or interview stories.
+
+3. This is preparation for action
+   - The candidate may apply based on this evaluation.
+   - Every recommendation should be concrete enough to act on immediately.
+
+--------------------------------
+STAGE 1 SCREEN RESULTS (REFERENCE)
+--------------------------------
+
+{stage1_results}
+
+--------------------------------
+CANDIDATE PROFILE
+--------------------------------
+
+{candidate_profile}
+
+--------------------------------
+RESUME
+--------------------------------
+
+{resume_text}
+
+--------------------------------
+ANCHOR STORIES (if available)
+--------------------------------
+
+{anchor_stories}
+
+--------------------------------
+TARGET ARCHETYPES
+--------------------------------
+
+{archetypes}
+
+--------------------------------
+JOB INPUTS
+--------------------------------
+
+Company: {company}
+Job Title: {job_title}
+Location: {location}
+Compensation: {compensation}
+
+Job Description:
+{job_description}
+
+--------------------------------
+COMPANY CONTEXT
+--------------------------------
+
+{background_company_context}
+
+Company interest score: {company_interest_score}/10
+
+--------------------------------
+RECENT SIGNALS
+--------------------------------
+
+{recent_signals}
+
+--------------------------------
+BLOCK D: COMPENSATION & MARKET DEMAND
+--------------------------------
+
+Using the recent signals and any compensation data available, assess:
+
+1. Compensation alignment
+   - Compare the posted comp range (if any) to market rates for this role,
+     seniority, and location.
+   - If no comp is posted, estimate the likely range based on company stage,
+     location, and role level.
+   - Rate: above_market | at_market | below_market | unknown
+
+2. Role demand
+   - Is this a role companies are actively competing for?
+   - Is the skill set in short supply or abundant?
+   - Rate: high_demand | moderate_demand | low_demand
+
+3. Company hiring context
+   - Any recent layoffs, freezes, or rapid hiring signals?
+   - Is this likely a backfill, new headcount, or reorg?
+
+Provide:
+- comp_assessment: "above_market" | "at_market" | "below_market" | "unknown"
+- comp_estimate_low: number or null (annual USD)
+- comp_estimate_high: number or null (annual USD)
+- comp_notes: one sentence on comp context
+- role_demand: "high_demand" | "moderate_demand" | "low_demand"
+- hiring_context: one sentence on company hiring signals
+
+--------------------------------
+BLOCK E: RESUME PERSONALIZATION PLAN
+--------------------------------
+
+Based on the Stage 1 resume match results and the full JD, recommend specific
+changes to maximize fit for this application.
+
+Provide exactly 5 recommendations, ordered by impact:
+
+For each:
+- section: which resume section to change (e.g., "Summary", "Atlassian — Senior PM", "Skills")
+- current: what it says now (quote or paraphrase from the resume)
+- proposed: what it should say instead
+- why: how this change improves match to this specific JD
+
+Also provide:
+- positioning_summary: 2-3 sentences — how the candidate should frame themselves
+  for this specific role. This is the elevator pitch if a recruiter asks "why this role?"
+
+Provide:
+- resume_changes: list of 5 objects with section/current/proposed/why
+- positioning_summary: string
+
+--------------------------------
+BLOCK F: INTERVIEW PREPARATION
+--------------------------------
+
+Map the JD's key requirements to the candidate's experience and suggest
+interview stories.
+
+For each of the top 5 JD requirements:
+- requirement: what the JD asks for
+- experience_match: the most relevant experience from the resume or profile
+- star_skeleton: a brief STAR+R outline the candidate can develop
+  - Situation: context (1 sentence)
+  - Task: what needed to happen (1 sentence)
+  - Action: what the candidate did (1-2 sentences)
+  - Result: measurable outcome (1 sentence)
+  - Reflection: what was learned or what they'd do differently (1 sentence)
+
+If anchor stories are available, prefer those for richer detail.
+If not, build skeletons from resume experience — the candidate will flesh them out.
+
+Also provide:
+- red_flag_questions: list of 2-3 likely tough interview questions and how to handle them
+  (e.g., "Why are you leaving?", "You don't have direct X experience")
+- case_study_recommendation: which project or achievement to lead with if asked for a
+  case study presentation, and why it fits this role
+
+Provide:
+- interview_stories: list of 5 objects with requirement/experience_match/star_skeleton
+- red_flag_questions: list of 2-3 objects with question/approach
+- case_study_recommendation: object with project/why
+
+--------------------------------
+BLOCK G: POSTING LEGITIMACY
+--------------------------------
+
+Assess whether this posting is likely a real, active opening. This helps the
+candidate prioritize effort.
+
+Analyze these signals from the JD text and recent company signals:
+
+1. Description quality
+   - Does it name specific technologies, frameworks, or tools?
+   - Does it mention team size, reporting structure, or org context?
+   - Are requirements realistic? (years of experience vs technology age)
+   - Is there clear scope for the first 6-12 months?
+   - What ratio of the JD is role-specific vs generic boilerplate?
+
+2. Requirements coherence
+   - Do the requirements match the seniority level?
+   - Any internal contradictions? (entry-level title + staff requirements, etc.)
+
+3. Company hiring signals (from recent_signals)
+   - Any recent layoffs in this department?
+   - Is the company in active growth or contraction?
+   - Does this role make sense for the company's current stage?
+
+4. Compensation transparency
+   - Is salary posted? (jurisdiction-dependent — low weight signal)
+
+Rate the overall legitimacy:
+- "High Confidence" — multiple signals suggest a real, active opening
+- "Proceed with Caution" — mixed signals worth noting
+- "Suspicious" — multiple ghost job indicators
+
+Important: present observations, not accusations. Every signal has legitimate
+explanations. The candidate decides how to weigh them.
+
+Provide:
+- legitimacy_tier: "High Confidence" | "Proceed with Caution" | "Suspicious"
+- legitimacy_signals: list of objects with signal/finding/weight ("positive" | "neutral" | "concerning")
+- legitimacy_notes: any caveats (niche role, government job, evergreen position, etc.)
+
+--------------------------------
+FINAL SCORE
+--------------------------------
+
+Compute a final deep_eval_score (1-5) that incorporates everything:
+- Stage 1 screen_score as baseline
+- Comp alignment (adjust up/down)
+- Legitimacy (adjust down if concerning)
+- Overall preparation readiness (how strong is the candidate's story for this role?)
+
+Final route:
+- "Strong Apply" — deep_eval_score >= 4.5 and legitimacy is High Confidence
+- "Apply" — deep_eval_score >= 3.5
+- "Do Not Apply" — deep_eval_score < 3.5 or legitimacy is Suspicious
+
+Provide:
+- deep_eval_score: number 1-5 (one decimal place)
+- final_route: "Strong Apply" | "Apply" | "Reconsider"
+- apply_urgency: "high" | "medium" | "low" (based on role demand + posting freshness signals)
+- one_line_summary: single sentence — why apply or why not
+
+--------------------------------
+OUTPUT FORMAT
+--------------------------------
+
+Return ONLY valid JSON:
+
+{{
+  "comp_assessment": "above_market" | "at_market" | "below_market" | "unknown",
+  "comp_estimate_low": number | null,
+  "comp_estimate_high": number | null,
+  "comp_notes": "string",
+  "role_demand": "high_demand" | "moderate_demand" | "low_demand",
+  "hiring_context": "string",
+  "resume_changes": [
+    {{
+      "section": "string",
+      "current": "string",
+      "proposed": "string",
+      "why": "string"
+    }}
+  ],
+  "positioning_summary": "string",
+  "interview_stories": [
+    {{
+      "requirement": "string",
+      "experience_match": "string",
+      "star_skeleton": {{
+        "situation": "string",
+        "task": "string",
+        "action": "string",
+        "result": "string",
+        "reflection": "string"
+      }}
+    }}
+  ],
+  "red_flag_questions": [
+    {{
+      "question": "string",
+      "approach": "string"
+    }}
+  ],
+  "case_study_recommendation": {{
+    "project": "string",
+    "why": "string"
+  }},
+  "legitimacy_tier": "High Confidence" | "Proceed with Caution" | "Suspicious",
+  "legitimacy_signals": [
+    {{
+      "signal": "string",
+      "finding": "string",
+      "weight": "positive" | "neutral" | "concerning"
+    }}
+  ],
+  "legitimacy_notes": "string",
+  "deep_eval_score": number,
+  "final_route": "Strong Apply" | "Apply" | "Do Not Apply",
+  "apply_urgency": "high" | "medium" | "low",
+  "one_line_summary": "string"
+}}
