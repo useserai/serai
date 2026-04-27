@@ -9,7 +9,13 @@ from company_discovery import (
     load_discovered_companies,
     save_discovered_companies,
 )
-from discovery_patterns import DISCOVERY_PATTERNS, load_discovery_keywords
+from discovery_patterns import (
+    DISCOVERY_PATTERNS,
+    DEFAULT_BROAD_SWEEP_TITLES,
+    DEFAULT_ADJACENT_TITLE_KEYWORDS,
+    load_discovery_keywords
+)
+from config_loader import is_new_config, get_discovery_config, get_candidate_prompt
 from role_title_gates import (
     load_unknown_bucket_title_substrings,
     role_title_matches_exclusion_substrings,
@@ -337,9 +343,10 @@ def process_ats_company_discovery(
     errors: list,
     broad_sweep_titles: list,
     adjacent_title_keywords: list,
+    discovery_patterns: list = None,
 ) -> None:
     discovered = discover_companies(
-        DISCOVERY_PATTERNS,
+        discovery_patterns or DISCOVERY_PATTERNS,
         broad_sweep_titles,
         adjacent_title_keywords,
     )
@@ -583,8 +590,17 @@ def main():
         "notes": "",
     }
 
-    candidate_profile = load_text_file(CANDIDATE_PROFILE_PATH)
-    adjacent_kw, broad_titles = load_discovery_keywords(CANDIDATE_PROFILE_PATH)
+    if is_new_config():
+        candidate_profile = get_candidate_prompt()
+        discovery_cfg = get_discovery_config()
+        discovery_patterns = discovery_cfg["patterns"] or DISCOVERY_PATTERNS
+        broad_titles = discovery_cfg["broad_sweep_titles"] or DEFAULT_BROAD_SWEEP_TITLES
+        adjacent_kw = discovery_cfg["adjacent_title_keywords"] or DEFAULT_ADJACENT_TITLE_KEYWORDS
+    else:
+        candidate_profile = load_text_file(CANDIDATE_PROFILE_PATH)
+        adjacent_kw, broad_titles = load_discovery_keywords(CANDIDATE_PROFILE_PATH)
+        discovery_patterns = DISCOVERY_PATTERNS
+
     errors = []
 
     try:
@@ -594,6 +610,7 @@ def main():
             errors,
             broad_titles,
             adjacent_kw,
+            discovery_patterns,
         )
         process_yc_job_discovery(candidate_profile, metrics, errors)
 
