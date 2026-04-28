@@ -415,6 +415,74 @@ def get_resume_text() -> str:
     """Load resume.md content."""
     return _load_text(RESUME_FILE)
 
+def get_anchor_stories() -> Dict[str, Any]:
+    """Load anchor stories from config.yaml or fall back to candidate_data/anchor_stories.yaml."""
+    import yaml
+    cfg = _get_config()
+    stories = cfg.get("anchor_stories", {})
+    if stories:
+        return stories
+    legacy_path = BASE_DIR / "candidate_data" / "anchor_stories.yaml"
+    if legacy_path.exists():
+        try:
+            with legacy_path.open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                return data if isinstance(data, dict) else {"stories": []}
+        except (OSError, Exception):
+            pass
+    return {"stories": []}
+
+
+def get_keyword_weights() -> Dict[str, int]:
+    """Load keyword weights from config.yaml or fall back to candidate_data/keyword_weights.yaml."""
+    import yaml
+    cfg = _get_config()
+    weights = cfg.get("keyword_weights", {})
+    if weights:
+        return {k.lower().strip().replace("_", " "): int(v) for k, v in weights.items()
+                if isinstance(k, str) and k.strip()}
+    legacy_path = BASE_DIR / "candidate_data" / "keyword_weights.yaml"
+    if legacy_path.exists():
+        try:
+            with legacy_path.open("r", encoding="utf-8") as f:
+                raw = yaml.safe_load(f)
+                if isinstance(raw, dict):
+                    out = {}
+                    for k, v in raw.items():
+                        if not isinstance(k, str):
+                            continue
+                        key = k.lower().strip().replace("_", " ")
+                        if not key:
+                            continue
+                        try:
+                            out[key] = int(v)
+                        except (TypeError, ValueError):
+                            continue
+                    if out:
+                        return out
+        except (OSError, Exception):
+            pass
+    return {}
+
+
+def get_unknown_bucket_title_substrings_from_profile() -> str:
+    """Return the raw candidate profile text for unknown-bucket substring parsing."""
+    if is_new_config():
+        return get_candidate_prompt()
+    return _load_text(LEGACY_PROFILE_FILE)
+
+
+def get_discovery_keywords() -> tuple:
+    """Return (adjacent_keywords, broad_sweep_titles) from config.yaml or legacy profile."""
+    cfg = _get_config()
+    discovery = cfg.get("discovery", {})
+    adjacent = discovery.get("adjacent_title_keywords", [])
+    broad = discovery.get("broad_sweep_titles", [])
+    if adjacent or broad:
+        return adjacent, broad
+    from discovery_patterns import parse_discovery_config_from_profile
+    profile_text = get_candidate_prompt()
+    return parse_discovery_config_from_profile(profile_text)
 
 # ---------------------------------------------------------------------------
 # Internal: markdown section extraction

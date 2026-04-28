@@ -7,7 +7,7 @@ import yaml
 from dotenv import load_dotenv
 
 from llm_client import call_llm, get_model_name
-
+import config_loader
 
 DEBUG = False
 VERBOSE_LOGGING = False
@@ -19,13 +19,7 @@ CACHE_FILE = BASE_DIR / "llm_job_cache.json"
 MODEL_NAME = get_model_name()
 JOB_PROMPT_VERSION = "job_v36"
 
-CANDIDATE_PROFILE_FILE = BASE_DIR / "candidate_data" / "candidate_profile.txt"
-RESUME_FILE = BASE_DIR / "candidate_data" / "resume.md"
-ANCHOR_STORIES_FILE = BASE_DIR / "candidate_data" / "anchor_stories.yaml"
-KEYWORD_WEIGHTS_FILE = BASE_DIR / "candidate_data" / "keyword_weights.yaml"
 PROMPT_TEMPLATE_FILE = BASE_DIR / "prompts" / "role_eval_prompt.txt"
-# Fallback when CANDIDATE_PROFILE_FILE has no LLM ROLE-FIT GUARDRAILS markers.
-HARD_GUARDRAILS_CANDIDATE_FILE = BASE_DIR / "candidate_profile.growth-pm.txt"
 GUARDRAILS_SECTION_START = "=== LLM ROLE-FIT GUARDRAILS (candidate-specific) ==="
 GUARDRAILS_SECTION_END = "=== END LLM ROLE-FIT GUARDRAILS (candidate-specific) ==="
 
@@ -62,13 +56,9 @@ def _extract_hard_guardrails_marked_section(raw: str) -> str:
 
 
 def load_hard_guardrails_candidate() -> str:
-    """Candidate-specific role-fit rules between markers in the active profile, with example fallback."""
-    primary = _extract_hard_guardrails_marked_section(load_text_file(CANDIDATE_PROFILE_FILE))
-    if primary:
-        return primary
-    return _extract_hard_guardrails_marked_section(
-        load_text_file(HARD_GUARDRAILS_CANDIDATE_FILE)
-    )
+    """Candidate-specific role-fit rules between markers in the active profile."""
+    profile_text = config_loader.get_candidate_prompt()
+    return _extract_hard_guardrails_marked_section(profile_text)
 
 
 def load_yaml_file(path: Path, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -83,70 +73,11 @@ def load_yaml_file(path: Path, default: Optional[Dict[str, Any]] = None) -> Dict
         return default
 
 
-# Used only if candidate_data/keyword_weights.yaml is missing or has no valid entries.
-# Keep in sync with that file.
-_FALLBACK_KEYWORD_WEIGHTS: Dict[str, int] = {
-    "security": 5,
-    "governance": 5,
-    "privacy": 5,
-    "compliance": 5,
-    "policy": 4,
-    "policies": 4,
-    "permissions": 4,
-    "access": 3,
-    "controls": 4,
-    "audit": 4,
-    "risk": 4,
-    "trust": 4,
-    "gdpr": 5,
-    "data protection": 5,
-    "user data": 4,
-    "deletion": 4,
-    "reporting": 3,
-    "api": 3,
-    "platform": 2,
-    "developer": 2,
-    "ecosystem": 2,
-    "migration": 3,
-    "growth": 3,
-    "monetization": 4,
-    "conversion": 4,
-    "experimentation": 4,
-    "onboarding": 3,
-    "productivity": 3,
-    "workflow": 2,
-    "ai": 3,
-    "agent": 4,
-    "agents": 4,
-    "automation": 3,
-    "enterprise": 3,
-    "integration": 3,
-    "integrations": 3,
-}
-
-
-def load_keyword_weights(path: Path) -> Dict[str, int]:
-    """JD keyword weights for anchor-story scoring; keys normalized like normalize_keyword()."""
-    raw = load_yaml_file(path, default={})
-    out: Dict[str, int] = {}
-    for k, v in raw.items():
-        if not isinstance(k, str):
-            continue
-        key = k.lower().strip().replace("_", " ")
-        if not key:
-            continue
-        try:
-            out[key] = int(v)
-        except (TypeError, ValueError):
-            continue
-    return out if out else dict(_FALLBACK_KEYWORD_WEIGHTS)
-
-
 PROMPT_TEMPLATE = load_text_file(PROMPT_TEMPLATE_FILE)
-DEFAULT_CANDIDATE_PROFILE = load_text_file(CANDIDATE_PROFILE_FILE)
-RESUME_TEXT = load_text_file(RESUME_FILE)
-ANCHOR_STORIES = load_yaml_file(ANCHOR_STORIES_FILE, default={"stories": []})
-KEYWORD_WEIGHTS = load_keyword_weights(KEYWORD_WEIGHTS_FILE)
+DEFAULT_CANDIDATE_PROFILE = config_loader.get_candidate_prompt()
+RESUME_TEXT = config_loader.get_resume_text()
+ANCHOR_STORIES = config_loader.get_anchor_stories()
+KEYWORD_WEIGHTS = config_loader.get_keyword_weights()
 
 if DEBUG:
     debug_print("ANCHOR STORIES LOADED:", len(ANCHOR_STORIES.get("stories", [])))
@@ -484,7 +415,7 @@ def get_json_schema() -> Dict[str, Any]:
             "job_confidence": {"type": "number"},
             "preliminary_route": {
                 "type": "string",
-                "enum": ["Apply", "Network", "Review", "Skip"],
+                "enum": ["Apply", "Skip"],
             },
             "differentiation_reason": {"type": "string"},
             "main_reservation": {"type": "string"},

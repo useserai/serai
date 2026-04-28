@@ -98,15 +98,8 @@ def _format_archetypes(archetypes: List[Dict[str, Any]]) -> str:
 # ---------------------------------------------------------------------------
 
 def _load_anchor_stories() -> Dict[str, Any]:
-    """Load anchor_stories.yaml if it exists. Returns {"stories": [...]} or empty."""
-    import yaml
-    path = BASE_DIR / "candidate_data" / "anchor_stories.yaml"
-    try:
-        with path.open("r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            return data if isinstance(data, dict) else {"stories": []}
-    except (OSError, Exception):
-        return {"stories": []}
+    """Load anchor stories via config_loader (supports config.yaml and legacy path)."""
+    return config_loader.get_anchor_stories()
 
 
 def _format_anchor_stories(stories: List[Dict[str, Any]]) -> str:
