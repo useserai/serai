@@ -59,7 +59,7 @@ def _company_key(company: dict) -> tuple:
             company.get("workday_locale", ""),
             company["workday_site"],
         )
-    return (company["source"], company,get(["board_token",""]).lower())
+    return (company["source"], company.get("board_token", "").lower())
 
 
 def load_company_registry() -> list[dict]:
