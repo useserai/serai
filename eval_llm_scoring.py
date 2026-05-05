@@ -1,4 +1,5 @@
 import csv
+import sys
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
@@ -117,6 +118,11 @@ def build_notion_payload(job: dict, company_result: dict, stage1: dict, stage2: 
 
 
 def main():
+    from doctor import run_preflight
+    if not run_preflight():
+        print("Preflight failed. Aborting.")
+        sys.exit(1)
+
     run_started_at = datetime.now(timezone.utc).isoformat()
     metrics = {
         "script": "job_monitor",
@@ -240,12 +246,15 @@ def main():
 
             print("LOOPING COMPANY:", company_config["company_slug"], "| enabled:", company_config.get("enabled", True))
 
-        if rows:
-            with open("llm_eval_results.csv", "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=rows[0].keys())
-                writer.writeheader()
-                writer.writerows(rows)
+            # Incremental persistence: save cache + CSV after every company so failed runs preserve progress
+            save_cache(cache)
+            if rows:
+                with open("llm_eval_results.csv", "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+                    writer.writeheader()
+                    writer.writerows(rows)
 
+        if rows:
             print(f"\nWrote {len(rows)} rows to llm_eval_results.csv")
         else:
             print("No rows matched the filter.")

@@ -18,12 +18,11 @@ from normalize import (
 )
 from job_filter import fast_filter_title_geo, check_comp
 from company_registry import active_company_keys
+from search_backends import search_web
 
 load_dotenv()
 
 DISCOVERED_COMPANIES_FILE = Path("discovered_companies.json")
-BRAVE_SEARCH_API_KEY = os.getenv("BRAVE_SEARCH_API_KEY")
-BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
 
 DISCOVERY_RECHECK_DAYS = 14
 DISCOVERY_RESULT_COUNT = 20
@@ -107,56 +106,6 @@ def build_search_queries(patterns: list, broad_sweep_titles: list) -> list:
         deduped.append(item)
 
     return deduped
-
-
-def brave_search(query: str, count: int = DISCOVERY_RESULT_COUNT) -> list:
-    if not BRAVE_SEARCH_API_KEY:
-        raise ValueError("Missing BRAVE_SEARCH_API_KEY in environment")
-
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": BRAVE_SEARCH_API_KEY,
-    }
-
-    params = {
-        "q": query,
-        "count": count,
-        "search_lang": "en",
-        "country": "us",
-        "spellcheck": 1,
-    }
-
-    print(f"[discovery] brave_search start: {query}")
-
-    response = requests.get(
-        BRAVE_SEARCH_URL,
-        headers=headers,
-        params=params,
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    data = response.json()
-    web = data.get("web", {})
-    results = web.get("results", [])
-
-    structured = []
-    for result in results:
-        url = result.get("url")
-        if not url:
-            continue
-
-        structured.append(
-            {
-                "url": url,
-                "title": result.get("title", "") or "",
-                "description": result.get("description", "") or "",
-            }
-        )
-
-    print(f"[discovery] brave_search success: {query} -> {len(structured)} urls")
-    return structured
 
 
 def extract_board_candidate(result: dict) -> Optional[dict]:
@@ -346,7 +295,7 @@ def collect_board_candidates(patterns: list, broad_sweep_titles: list) -> list:
         query = query_spec["query"]
 
         try:
-            results = brave_search(query, count=DISCOVERY_RESULT_COUNT)
+            results = search_web(query, count=DISCOVERY_RESULT_COUNT)
         except Exception as e:
             print(f"[discovery] search failed for query={query!r}: {e}")
             continue

@@ -128,41 +128,17 @@ def build_properties(job):
         "Comp Max": {
             "number": comp_max
         },
-        "Screen Score": {
-            "number": safe_number(job.get("screen_score"))
-        },
         "Deep Eval Score": {
             "number": safe_number(job.get("deep_eval_score"))
         },
         "Company Score": {
             "number": safe_number(job.get("company_interest_score"))
         },
-        "Resume Match": {
-            "number": safe_number(job.get("resume_match_score"))
-        },
-        "Level Fit": {
-            "number": safe_number(job.get("level_fit_score"))
-        },
-        "Archetype": {
-            "select": {
-                "name": truncate_text(job.get("archetype", "Other"), 100)
-            }
-        },
-        "Screen Route": {
-            "select": {
-                "name": job.get("screen_route", "Skip")
-            }
-        },
         "Legitimacy": {
             "select": {
                 "name": job.get("legitimacy_tier", "")
             }
         } if job.get("legitimacy_tier") else {},
-        "Apply Urgency": {
-            "select": {
-                "name": job.get("apply_urgency", "")
-            }
-        } if job.get("apply_urgency") else {},
         "Why Strong": {
             "rich_text": [
                 {
@@ -201,7 +177,6 @@ def build_properties(job):
         },
     }
 
-    # Remove empty property dicts (from conditional Legitimacy/Apply Urgency)
     properties = {k: v for k, v in properties.items() if v}
 
     return properties

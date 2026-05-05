@@ -1,4 +1,5 @@
 import csv
+import sys
 import config_loader
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,6 +44,18 @@ def to_float(value, default=0.0):
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def build_discovery_notion_payload(job: dict, company_result: dict, company_slug: str) -> dict:
+    """Build a minimal Notion payload for a job surfaced by discovery (no stage1/stage2 yet)."""
+    return {
+        **job,
+        "company": company_slug,
+        "company_interest_score": company_result.get("company_interest_score"),
+        "final_route": "Discovery — Lead",
+        "differentiation_reason": company_result.get("company_interest_reason", ""),
+    }
+
 
 def build_yc_notion_payload(job: dict, company_result: dict, stage1: dict, stage2: dict = None) -> dict:
     """Merge job + stage results into a flat dict for notion_helper, matching eval_llm_scoring pattern."""
@@ -225,6 +238,19 @@ def process_ats_company_discovery(
                 f"score={company_score} status={status}"
             )
 
+        # Per-company Notion writes: only for promoted or watchlist companies (skip rejected)
+        if status.startswith(("promoted_", "watchlist_")):
+            for match in item.get("direct_matches", []):
+                try:
+                    notion_payload = build_discovery_notion_payload(match, company_result, company_slug)
+                    upsert_eval_job(notion_payload)
+                    metrics["discovery_notion_writes"] += 1
+                    print(f"→ Notion (discovery): {company_slug} | {match.get('title')}")
+                except Exception as e:
+                    msg = f"[discovery] Notion write failed for {company_slug} | {match.get('title')}: {e}"
+                    print(msg)
+                    errors.append(msg)
+
         store_key = get_store_key(item)
 
         discovered_store[store_key] = {
@@ -275,6 +301,14 @@ def process_ats_company_discovery(
                 "discovery_query": item.get("discovery_query"),
             }
         )
+
+        # Incremental persistence: save after every company so failed runs preserve progress
+        save_discovered_companies(discovered_store)
+        if rows:
+            with OUTPUT_CSV.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+                writer.writeheader()
+                writer.writerows(rows)
 
     save_discovered_companies(discovered_store)
 
@@ -380,6 +414,11 @@ def process_yc_job_discovery(candidate_profile: str, metrics: dict, errors: list
         print(f"[yc_jobs] wrote {len(yc_rows)} rows to {YC_OUTPUT_CSV}")
 
 def main():
+    from doctor import run_preflight
+    if not run_preflight():
+        print("Preflight failed. Aborting.")
+        sys.exit(1)
+
     run_started_at = datetime.now(timezone.utc).isoformat()
     metrics = {
         "script": "company_discovery",
@@ -395,6 +434,7 @@ def main():
         "high_role_interest_but_skip": 0,
         "discovery_candidates": 0,
         "discovery_promoted": 0,
+        "discovery_notion_writes": 0,
         "notes": "",
     }
 

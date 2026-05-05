@@ -24,3 +24,4 @@ typing_extensions==4.15.0
 urllib3==2.6.3
 pyyaml
 beautifulsoup4
+ddgs>=9.0

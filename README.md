@@ -170,10 +170,14 @@ OPENAI_API_KEY=...            # required if MODEL_PROVIDER=openai
 ANTHROPIC_API_KEY=...         # required if MODEL_PROVIDER=anthropic
 GOOGLE_API_KEY=...            # required if MODEL_PROVIDER=google
 
-# --- Required: search + output ---
-BRAVE_SEARCH_API_KEY=...      # real-time company signal grounding
+# --- Required: output ---
 NOTION_TOKEN=ntn_...          # Notion integration token
 NOTION_DATABASE_ID=...        # your Notion database ID (roles)
+
+# --- Search backends (chain: Brave → Tavily → DuckDuckGo) ---
+# At least one is recommended. DuckDuckGo (no key) is the always-available floor.
+BRAVE_SEARCH_API_KEY=...      # primary search; 2K free queries/month
+TAVILY_API_KEY=...            # optional middle tier; 1K free searches/month
 
 # --- Optional: run metrics tracking ---
 RUN_METRICS_DATABASE_ID=...   # separate Notion DB for run metrics (optional)
@@ -198,7 +202,8 @@ Where to get each key:
 | OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
 | Anthropic | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
 | Google Gemini | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — generous free tier |
-| Brave Search | [brave.com/search/api](https://brave.com/search/api/) — free tier covers typical usage |
+| Brave Search | [brave.com/search/api](https://brave.com/search/api/) — primary search; 2K free queries/month |
+| Tavily | [tavily.com](https://tavily.com/) — optional fallback; 1K free searches/month |
 | Notion | [notion.so/my-integrations](https://www.notion.so/my-integrations) — free plan works |
 
 You'll set up the Notion database and get the database ID in step 5.
@@ -237,16 +242,10 @@ Create a new Notion database with these properties. Names and types must match e
 
 | Property | Type | Purpose |
 |---|---|---|
-| Final Recommendation | Select | Strong Apply / Apply / Skip |
-| Screen Score | Number | Stage 1 screen score (1–5) |
+| Final Recommendation | Select | Strong Apply / Apply / Discovery — Lead |
 | Deep Eval Score | Number | Stage 2 deep eval score (1–5) |
-| Resume Match | Number | Resume match score (1–5) |
-| Level Fit | Number | Level fit score (1–5) |
 | Company Score | Number | Company dimension score (1–10) |
-| Archetype | Select | Detected role archetype |
-| Screen Route | Select | Stage 1 route |
 | Legitimacy | Select | Posting legitimacy tier |
-| Apply Urgency | Select | high / medium / low |
 | Title | Text | Role title |
 | Company | Text | Company name |
 | URL | URL | Link to the job posting |
@@ -274,7 +273,17 @@ cp examples/profile.example.md profile.md
 
 This is optional enrichment. If provided, Serai uses it during role evaluation to get richer context about your archetype preferences, disqualifier explanations, and dimension anchors. If you skip this step, Serai works fine with just config.yaml and resume.md.
 
-### 7. Run company discovery
+### 7. Verify your setup, then run company discovery
+
+Before the first long run, run the preflight check:
+
+```bash
+python doctor.py
+```
+
+This validates your Notion DB schema, confirms write permissions, and reports search backend availability. Doctor also auto-runs at the start of `run_company_discovery.py` and `eval_llm_scoring.py`, so config issues surface in seconds rather than after hours of LLM calls.
+
+Then run discovery:
 
 ```bash
 python run_company_discovery.py
@@ -332,9 +341,10 @@ The tools are complementary. Use Serai to find the right companies. Use whatever
 
 ## Roadmap
 
-- **v1.3** Alerting (Notion + alternatives: Slack, email)
-- **v1.4** `bin/generate_profile.py` — upload your resume + describe what you want, get a draft candidate profile to review and edit
-- **v1.5** Historical accuracy tracking — did companies scored 8+ actually break out?
+- **v1.3** Reliability — `serai doctor` preflight, incremental persistence (discovery + active monitoring), per-company Notion writes from discovery, search backend chain (Brave → Tavily → DuckDuckGo), slim Notion schema (current)
+- **v1.4** Alerting (Notion + Slack, email)
+- **v1.5** `bin/generate_profile.py` — upload your resume + describe what you want, get a draft candidate profile to review and edit
+- **v1.6** Historical accuracy tracking — did companies scored 8+ actually break out?
 - **v2.0** Hosted version with resume-to-profile onboarding (if demand warrants)
 
 ---
