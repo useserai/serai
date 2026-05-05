@@ -30,11 +30,16 @@ EXPECTED_PROPERTIES = {
     "Source Job ID": "rich_text",
 }
 
-REQUIRED_ENV_VARS = [
+BASE_REQUIRED_ENV_VARS = [
     "NOTION_TOKEN",
     "NOTION_DATABASE_ID",
-    "OPENAI_API_KEY",
 ]
+
+LLM_PROVIDER_KEY_MAP = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "google": "GOOGLE_API_KEY",
+}
 
 OPTIONAL_SEARCH_KEYS = [
     "BRAVE_SEARCH_API_KEY",
@@ -43,7 +48,17 @@ OPTIONAL_SEARCH_KEYS = [
 
 
 def check_env_vars():
-    missing = [v for v in REQUIRED_ENV_VARS if not os.getenv(v)]
+    # Match llm_client.py's default behavior: MODEL_PROVIDER unset -> "openai"
+    provider = (os.getenv("MODEL_PROVIDER") or "openai").strip().lower()
+
+    if provider not in LLM_PROVIDER_KEY_MAP:
+        valid = ", ".join(LLM_PROVIDER_KEY_MAP.keys())
+        return False, f"Unknown MODEL_PROVIDER: '{provider}'. Expected one of: {valid}"
+
+    llm_key = LLM_PROVIDER_KEY_MAP[provider]
+    required = BASE_REQUIRED_ENV_VARS + [llm_key]
+
+    missing = [v for v in required if not os.getenv(v)]
     if missing:
         return False, f"Missing required env vars: {', '.join(missing)}"
 
@@ -52,7 +67,7 @@ def check_env_vars():
         backend_status.append(f"{var}={'set' if os.getenv(var) else 'not set'}")
     backend_status.append("DuckDuckGo=always available (when ddgs installed)")
 
-    return True, "Required env vars present. Search backends: " + " | ".join(backend_status)
+    return True, f"Required env vars present (LLM provider: {provider}). Search backends: " + " | ".join(backend_status)
 
 
 def check_notion_schema():
