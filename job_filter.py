@@ -106,6 +106,12 @@ def has_any_term(text, terms):
     return any(term in text for term in terms)
 
 
+def _home_region_slug() -> str:
+    """Slugify the home region name for use in pass/fail reasons."""
+    name = _FILTER_CONFIG.get("home_region", {}).get("name", "local")
+    return name.lower().strip().replace(" ", "_") or "local"
+
+
 def classify_single_location(location):
     location = normalize_location_text(location)
 
@@ -117,24 +123,26 @@ def classify_single_location(location):
             "force_review": False,
         }
 
+    home_region = _FILTER_CONFIG.get("home_region", {})
+    region_slug = _home_region_slug()
     is_hybrid = has_any_term(location, _FILTER_CONFIG["hybrid_terms"])
 
-    if has_any_term(location, _FILTER_CONFIG["local_region_terms"]):
+    if has_any_term(location, home_region.get("local_terms", [])):
         if is_hybrid:
             return {
                 "category": "hybrid_local",
                 "passed": True,
-                "reason": "geo_pass:hybrid_bay_area",
+                "reason": f"geo_pass:hybrid_local_{region_slug}",
                 "force_review": False,
             }
         return {
-            "category": "bay_area",
+            "category": "local",
             "passed": True,
-            "reason": "geo_pass:bay_area",
+            "reason": f"geo_pass:local_{region_slug}",
             "force_review": False,
         }
 
-    if has_any_term(location, _FILTER_CONFIG["non_local_city_terms"]):
+    if has_any_term(location, home_region.get("non_local_terms", [])):
         if is_hybrid:
             return {
                 "category": "hybrid_non_local",
@@ -150,7 +158,7 @@ def classify_single_location(location):
         }
 
     if has_any_term(location, _FILTER_CONFIG["remote_positive_terms"]):
-        if has_any_term(location, _FILTER_CONFIG["remote_restricted_terms"]):
+        if has_any_term(location, home_region.get("remote_restricted_regions", [])):
             return {
                 "category": "remote_restricted",
                 "passed": False,
@@ -158,11 +166,11 @@ def classify_single_location(location):
                 "force_review": False,
             }
 
-        if has_any_term(location, _FILTER_CONFIG["remote_broad_pass_terms"]):
+        if has_any_term(location, home_region.get("remote_compatible_regions", [])):
             return {
                 "category": "remote_ok",
                 "passed": True,
-                "reason": "geo_pass:remote_us_or_ca",
+                "reason": "geo_pass:remote_in_target_region",
                 "force_review": False,
             }
 
@@ -173,7 +181,7 @@ def classify_single_location(location):
             "force_review": False,
         }
 
-    if has_any_term(location, _FILTER_CONFIG["remote_broad_pass_terms"]):
+    if has_any_term(location, home_region.get("remote_compatible_regions", [])):
         return {
             "category": "remote_ok",
             "passed": True,
@@ -228,7 +236,7 @@ def check_geo(location_text):
             "details": details,
         }
 
-    for preferred_category in ["bay_area", "hybrid_local", "remote_ok"]:
+    for preferred_category in ["local", "hybrid_local", "remote_ok"]:
         for result in results:
             if result["category"] == preferred_category and result["passed"]:
                 return {
@@ -251,7 +259,8 @@ def check_geo(location_text):
 def check_description_geo_exclusions(description_text):
     text = normalize_location_text(description_text)
 
-    for phrase in _FILTER_CONFIG["description_location_reject_phrases"]:
+    phrases = _FILTER_CONFIG.get("home_region", {}).get("description_location_reject_phrases", [])
+    for phrase in phrases:
         if phrase in text:
             return {
                 "passed": False,

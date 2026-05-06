@@ -480,9 +480,14 @@ def gather_company_evidence(
 
             filter_result = fast_filter_title_geo(job)
             title_score = float(filter_result.get("title_score", 0))
+            is_passed = bool(filter_result.get("passed"))
+            is_adjacent = looks_adjacent(job.get("title", ""), title_score, adjacent_title_keywords)
             job_detail = None
 
-            if company_config["source"] == "greenhouse":
+            # Fetch per-job Greenhouse details only for candidates we'll evaluate downstream
+            # (direct or adjacent). Big boards (e.g. SpaceX with 1,000+ jobs and ~10 matching
+            # titles) burned ~5 minutes per board on detail fetches for jobs we discard.
+            if (is_passed or is_adjacent) and company_config["source"] == "greenhouse":
                 try:
                     job_detail = fetch_job_detail_for_company(company_config, job["source_job_id"])
                     comp_min, comp_max = extract_comp_from_greenhouse_detail(job_detail)
@@ -500,14 +505,12 @@ def gather_company_evidence(
             if len(example_titles) < 8:
                 example_titles.append(job.get("title", ""))
 
-            if filter_result.get("passed") and comp_result.get("passed"):
+            if is_passed and comp_result.get("passed"):
                 job["discovery_match_score"] = score_candidate_job(job, filter_result)
                 direct_matches.append(job)
                 continue
 
-            if looks_adjacent(
-                job.get("title", ""), title_score, adjacent_title_keywords
-            ):
+            if is_adjacent:
                 job["discovery_match_score"] = title_score
                 adjacent_matches.append(job)
 
@@ -536,35 +539,41 @@ def discover_companies(
     patterns: list,
     broad_sweep_titles: list,
     adjacent_title_keywords: list,
-) -> list:
+):
+    """Yield each verified candidate as soon as its evidence is gathered.
+
+    Generator so the caller can run LLM scoring + Notion writes per candidate
+    without waiting for the full discovery sweep. Time-to-first-Notion-write
+    drops from "end of run" (possibly hours) to "minutes after the first
+    candidate verifies." Crashes mid-sweep preserve every candidate already
+    yielded and persisted upstream.
+    """
     candidates = collect_board_candidates(patterns, broad_sweep_titles)
-    discovered = []
+    yielded = 0
 
     for candidate in candidates:
         evidence = gather_company_evidence(candidate, adjacent_title_keywords)
         if not evidence:
             continue
 
-        discovered.append(
-            {
-                **candidate,
-                **evidence,
-                "first_matching_title": (
-                    evidence["direct_matches"][0].get("title")
-                    if evidence["direct_matches"]
-                    else (evidence["adjacent_matches"][0].get("title") if evidence["adjacent_matches"] else "")
-                ),
-                "first_matching_url": (
-                    evidence["direct_matches"][0].get("url")
-                    if evidence["direct_matches"]
-                    else (evidence["adjacent_matches"][0].get("url") if evidence["adjacent_matches"] else "")
-                ),
-                "discovered_at": datetime.now(timezone.utc).isoformat(),
-            }
-        )
+        yielded += 1
+        yield {
+            **candidate,
+            **evidence,
+            "first_matching_title": (
+                evidence["direct_matches"][0].get("title")
+                if evidence["direct_matches"]
+                else (evidence["adjacent_matches"][0].get("title") if evidence["adjacent_matches"] else "")
+            ),
+            "first_matching_url": (
+                evidence["direct_matches"][0].get("url")
+                if evidence["direct_matches"]
+                else (evidence["adjacent_matches"][0].get("url") if evidence["adjacent_matches"] else "")
+            ),
+            "discovered_at": datetime.now(timezone.utc).isoformat(),
+        }
 
-    print(f"[discovery] discovered {len(discovered)} candidates with evidence")
-    return discovered
+    print(f"[discovery] streamed {yielded} candidates with evidence")
 
 
 def persist_discovery_results(discovered: list) -> None:

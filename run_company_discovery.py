@@ -200,24 +200,32 @@ def process_ats_company_discovery(
     adjacent_title_keywords: list,
     discovery_patterns: list = None,
 ) -> None:
-    discovered = discover_companies(
+    rows = []
+    discovered_store = load_discovered_companies()
+    discovered_items = []  # accumulated for persist_discovery_results at end of run
+    in_run_company_scores: dict = {}  # dedup LLM scoring within a single run
+
+    # Stream over candidates: each is scored + written to Notion + persisted to disk
+    # before the next is verified. Time-to-first-Notion-write is minutes, not hours.
+    # Crashes mid-sweep preserve every candidate already processed.
+    for item in discover_companies(
         discovery_patterns or DISCOVERY_PATTERNS,
         broad_sweep_titles,
         adjacent_title_keywords,
-    )
-    metrics["discovery_candidates"] = len(discovered)
-    metrics["companies_checked"] = len(discovered)
+    ):
+        metrics["discovery_candidates"] += 1
+        metrics["companies_checked"] += 1
+        discovered_items.append(item)
 
-    if not discovered:
-        print("[discovery] no candidate companies found")
-        return
-
-    rows = []
-    discovered_store = load_discovered_companies()
-
-    for item in discovered:
         company_slug = item["company_slug"]
-        company_result = llm_score_company(company_slug, candidate_profile)
+
+        # Same company can surface as multiple candidates (e.g., Stripe on both
+        # Greenhouse and Ashby). Dedup LLM scoring within this run.
+        if company_slug in in_run_company_scores:
+            company_result = in_run_company_scores[company_slug]
+        else:
+            company_result = llm_score_company(company_slug, candidate_profile)
+            in_run_company_scores[company_slug] = company_result
         company_score = to_float(company_result.get("company_interest_score"))
         status = determine_company_status(item, company_result)
 
@@ -312,13 +320,17 @@ def process_ats_company_discovery(
 
     save_discovered_companies(discovered_store)
 
+    if not discovered_items:
+        print("[discovery] no candidate companies found")
+        return
+
     persist_discovery_results(
         [
             {
                 **item,
                 "status": discovered_store[get_store_key(item)]["status"],
             }
-            for item in discovered
+            for item in discovered_items
         ]
     )
 

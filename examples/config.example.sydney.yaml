@@ -1,0 +1,148 @@
+# Serai Configuration — Sydney, Australia (Group PM example)
+#
+# This is a non-US example. It demonstrates how a Sydney-based candidate
+# configures filters.geo.home_region. Without overriding home_region, Serai's
+# defaults are Bay Area / US-only and will incorrectly reject Sydney roles.
+#
+# The candidate, target_roles, company_preferences, archetypes, and discovery
+# sections are not duplicated here — copy them from config.example.pm.yaml and
+# tweak to taste. The geo block below is the critical change for non-US users.
+
+candidate:
+  # Personal info
+  name: "Sam Kim"
+  email: "sam@example.com"
+  location: "Sydney, NSW, Australia"
+  timezone: "Australia/Sydney"
+
+  # Your core strengths and background
+  strengths:
+    - "Group PM at scale (B2B SaaS, 10+ years across product and growth)"
+    - "Cross-regional product leadership (APAC, US, EMEA timezone overlap)"
+    - "Platform thinking: APIs, marketplaces, multi-sided ecosystems"
+    - "Cross-functional leadership across engineering, design, data science"
+
+# Copy target_roles and company_preferences from config.example.pm.yaml.
+# The structure is the same; only your geo and personal details change.
+
+filters:
+  title:
+    target:
+      - "senior product manager"
+      - "principal product manager"
+      - "staff product manager"
+      - "group product manager"
+      - "product lead"
+
+    adjacent:
+      - "program manager"
+      - "technical program manager"
+      - "product operations"
+      - "product ops"
+
+    too_junior:
+      - "intern"
+      - "associate"
+      - "junior"
+      - "new grad"
+      - "apm"
+
+    too_senior:
+      - "director"
+      - "vp "
+      - "vice president"
+      - "chief product officer"
+      - "cpo"
+      - "head of product"
+
+    negative:
+      - "sales"
+      - "recruiter"
+      - "support"
+      - "consultant"
+      - "contractor"
+
+  compensation:
+    # Local currency or USD-equivalent — Serai treats this number as a comparison threshold.
+    # Note: comp filter is currently currency-agnostic. If you want stricter currency-aware
+    # filtering, you'll need to override min_acceptable_max with a USD-equivalent figure.
+    min_acceptable_max: 250000
+
+  # Geographic filtering — configured for a Sydney-based candidate.
+  geo:
+    remote_positive_terms:
+      - "remote"
+      - "work from home"
+      - "distributed"
+      - "anywhere"
+
+    hybrid_terms:
+      - "hybrid"
+      - "flexible"
+
+    location_split_pattern: "[;/|]|\\s+or\\s+"
+
+    # The home_region block defines all geo terms specific to where you live.
+    # This is the section that matters most for non-US users.
+    home_region:
+      name: "Sydney"
+
+      # Cities/regions that count as "local" (preferred)
+      local_terms:
+        - "sydney"
+        - "sydney, nsw"
+        - "sydney, australia"
+        - "nsw"
+        - "new south wales"
+        - "australia"
+
+      # Regions where remote work is compatible (overlapping time zones / sponsor-friendly)
+      remote_compatible_regions:
+        - "australia"
+        - "apac"
+        - "asia pacific"
+        - "asia-pacific"
+        - "remote-anywhere"
+        - "remote anywhere"
+        - "global"
+        - "worldwide"
+
+      # Regions where remote is restricted (wrong time zone / can't sponsor)
+      remote_restricted_regions:
+        - "us only"
+        - "us-only"
+        - "usa only"
+        - "united states only"
+        - "uk only"
+        - "european union"
+        - "eu only"
+        - "emea only"
+        - "north america only"
+
+      # Cities to hard-reject (not local, not on a compatible remote policy)
+      non_local_terms:
+        - "new york"
+        - "san francisco"
+        - "san jose"
+        - "seattle"
+        - "austin"
+        - "boston"
+        - "chicago"
+        - "los angeles"
+        - "london"
+        - "berlin"
+        - "paris"
+        - "tokyo"
+        - "singapore"
+        - "toronto"
+
+      # JD description phrases that explicitly exclude your candidacy.
+      # These are scanned in the job description text (not the location field).
+      description_location_reject_phrases:
+        - "us only"
+        - "us-only"
+        - "united states only"
+        - "must be located in the united states"
+        - "must be based in the united states"
+        - "us-based candidates only"
+        - "must be authorized to work in the us"

@@ -51,78 +51,12 @@ DEFAULT_JOB_FILTER = {
         "cpo",
         "head of product",
     ],
-    "local_region_terms": [
-        "san francisco",
-        "sf, ca",
-        "san jose",
-        "santa clara",
-        "mountain view",
-        "palo alto",
-        "menlo park",
-        "redwood city",
-        "sunnyvale",
-        "south san francisco",
-        "bay area",
-        "cupertino",
-        "foster city",
-        "burlingame",
-        "milpitas",
-        "oakland",
-        "berkeley",
-        "san mateo",
-    ],
+    "negative_words": [],
     "remote_positive_terms": [
         "remote",
         "work from home",
         "distributed",
         "anywhere",
-    ],
-    "remote_broad_pass_terms": [
-        "united states",
-        "usa",
-        "u.s.",
-        "us-only",
-        "us only",
-        "california",
-    ],
-    "remote_restricted_terms": [
-        "emea",
-        "europe",
-        "india",
-        "canada",
-        "uk",
-        "united kingdom",
-        "apac",
-        "singapore",
-        "australia",
-        "japan",
-        "germany",
-        "france",
-        "prague",
-        "pristina",
-        "czech republic",
-        "czechia",
-        "kosovo",
-    ],
-    "non_local_city_terms": [
-        "new york",
-        "new york, ny",
-        "ny, ny",
-        "nyc",
-        "seattle",
-        "austin",
-        "boston",
-        "chicago",
-        "los angeles",
-        "san diego",
-        "atlanta",
-        "denver",
-        "washington, dc",
-        "washington dc",
-        "london",
-        "toronto",
-        "prague",
-        "pristina",
     ],
     "hybrid_terms": [
         "hybrid",
@@ -131,18 +65,92 @@ DEFAULT_JOB_FILTER = {
     ],
     "location_split_pattern": r"[;/|]|\s+\|\s+|\s+or\s+",
     "min_acceptable_max_comp": 200000,
-    "description_location_reject_phrases": [
-        "not eligible to be hired in san jose, ca",
-        "not eligible to be hired in california",
-        "not open to candidates in california",
-        "cannot hire in california",
-        "we are unable to employ in california",
-        "not hiring in california",
-        "excluding california",
-        "except california",
-        "remote but not eligible to be hired in san jose, ca",
-        "remote but not eligible to be hired in california",
-    ],
+    # home_region holds all geo terms specific to where the candidate lives/works.
+    # The Bay Area / US values below are an example default — fork users in other
+    # regions should override these in their config.yaml under filters.geo.home_region.
+    # See examples/config.example.sydney.yaml for a non-US example.
+    "home_region": {
+        "name": "Bay Area",
+        "local_terms": [
+            "san francisco",
+            "sf, ca",
+            "san jose",
+            "santa clara",
+            "mountain view",
+            "palo alto",
+            "menlo park",
+            "redwood city",
+            "sunnyvale",
+            "south san francisco",
+            "bay area",
+            "cupertino",
+            "foster city",
+            "burlingame",
+            "milpitas",
+            "oakland",
+            "berkeley",
+            "san mateo",
+        ],
+        "remote_compatible_regions": [
+            "united states",
+            "usa",
+            "u.s.",
+            "us-only",
+            "us only",
+            "california",
+        ],
+        "remote_restricted_regions": [
+            "emea",
+            "europe",
+            "india",
+            "canada",
+            "uk",
+            "united kingdom",
+            "apac",
+            "singapore",
+            "australia",
+            "japan",
+            "germany",
+            "france",
+            "prague",
+            "pristina",
+            "czech republic",
+            "czechia",
+            "kosovo",
+        ],
+        "non_local_terms": [
+            "new york",
+            "new york, ny",
+            "ny, ny",
+            "nyc",
+            "seattle",
+            "austin",
+            "boston",
+            "chicago",
+            "los angeles",
+            "san diego",
+            "atlanta",
+            "denver",
+            "washington, dc",
+            "washington dc",
+            "london",
+            "toronto",
+            "prague",
+            "pristina",
+        ],
+        "description_location_reject_phrases": [
+            "not eligible to be hired in san jose, ca",
+            "not eligible to be hired in california",
+            "not open to candidates in california",
+            "cannot hire in california",
+            "we are unable to employ in california",
+            "not hiring in california",
+            "excluding california",
+            "except california",
+            "remote but not eligible to be hired in san jose, ca",
+            "remote but not eligible to be hired in california",
+        ],
+    },
 }
 
 
@@ -154,11 +162,60 @@ def _coerce_str_list(val, fallback: list[str], key: str) -> list[str]:
     return out if out else list(fallback)
 
 
+_LEGACY_GEO_KEY_MAP = {
+    # Old flat keys → new home_region nested keys. Forks with the old schema
+    # keep working; we just route their values into home_region and warn once.
+    "local_region_terms": "local_terms",
+    "remote_broad_pass_terms": "remote_compatible_regions",
+    "remote_restricted_terms": "remote_restricted_regions",
+    "non_local_city_terms": "non_local_terms",
+    "description_location_reject_phrases": "description_location_reject_phrases",
+}
+
+
+def _merge_home_region(raw_home_region, base_home_region: dict) -> dict:
+    home = deepcopy(base_home_region)
+    if not isinstance(raw_home_region, dict):
+        print("[job_filter_config] home_region must be a JSON object, using default")
+        return home
+
+    if isinstance(raw_home_region.get("name"), str) and raw_home_region["name"].strip():
+        home["name"] = raw_home_region["name"].strip()
+
+    for nested_key in (
+        "local_terms",
+        "remote_compatible_regions",
+        "remote_restricted_regions",
+        "non_local_terms",
+        "description_location_reject_phrases",
+    ):
+        if nested_key in raw_home_region:
+            home[nested_key] = _coerce_str_list(
+                raw_home_region[nested_key], base_home_region[nested_key], f"home_region.{nested_key}"
+            )
+
+    return home
+
+
 def _merge_job_filter_overrides(raw: dict) -> dict:
     cfg = deepcopy(DEFAULT_JOB_FILTER)
     if not isinstance(raw, dict):
         print("[job_filter_config] JOB FILTER CONFIG must be a JSON object, using defaults")
         return cfg
+
+    # Backward compat: route legacy flat geo keys into home_region with a one-time warning.
+    legacy_keys_seen = [k for k in _LEGACY_GEO_KEY_MAP if k in raw]
+    if legacy_keys_seen:
+        print(
+            f"[job_filter_config] DEPRECATION: legacy geo keys {legacy_keys_seen} found at the top "
+            "level; migrating into home_region. Update your config to use filters.geo.home_region "
+            "(see README upgrade notes and examples/config.example.sydney.yaml)."
+        )
+        for legacy_key in legacy_keys_seen:
+            new_key = _LEGACY_GEO_KEY_MAP[legacy_key]
+            cfg["home_region"][new_key] = _coerce_str_list(
+                raw[legacy_key], DEFAULT_JOB_FILTER["home_region"][new_key], legacy_key
+            )
 
     for key in DEFAULT_JOB_FILTER:
         if key not in raw:
@@ -169,15 +226,13 @@ def _merge_job_filter_overrides(raw: dict) -> dict:
             "adjacent_titles",
             "too_junior_words",
             "too_senior_words",
-            "local_region_terms",
+            "negative_words",
             "remote_positive_terms",
-            "remote_broad_pass_terms",
-            "remote_restricted_terms",
-            "non_local_city_terms",
             "hybrid_terms",
-            "description_location_reject_phrases",
         ):
             cfg[key] = _coerce_str_list(val, DEFAULT_JOB_FILTER[key], key)
+        elif key == "home_region":
+            cfg["home_region"] = _merge_home_region(val, DEFAULT_JOB_FILTER["home_region"])
         elif key == "location_split_pattern":
             if not isinstance(val, str) or not val.strip():
                 print(f"[job_filter_config] invalid {key!r}, using default")

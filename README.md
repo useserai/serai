@@ -320,6 +320,27 @@ On Linux, use `deploy/crontab.example` as a starting point for your crontab.
 
 ---
 
+## Upgrading from earlier versions
+
+If you've forked or cloned Serai before v1.3, here's how to update.
+
+```bash
+cd ~/serai
+git pull origin main
+pip install -r requirements.txt   # picks up new ddgs dependency
+python doctor.py                  # validates your Notion setup before any long run
+```
+
+**Notion schema:** v1.3 stops writing to six columns (Screen Score, Resume Match, Level Fit, Archetype, Screen Route, Apply Urgency). Existing data is preserved; new rows leave those fields empty. You can safely delete the columns from your Notion DB if you don't use them — none of this breaks anything.
+
+**Geo config — required action for non-US users.** Geographic filtering moved into a nested `home_region` block under `filters.geo` in your `config.yaml`. The default `home_region` is configured for the Bay Area, so if you live elsewhere you'll get bad geo results until you override it. Old flat keys (`local_region_terms`, `remote_broad_pass_terms`, `remote_restricted_terms`, `non_local_city_terms`) still work via backward compat with a deprecation warning, but you should migrate to the new shape. See `examples/config.example.sydney.yaml` for a non-US example you can copy.
+
+**Optional Tavily search:** Add `TAVILY_API_KEY` in your `.env` to insert Tavily as a middle-tier search backend between Brave and DuckDuckGo. If you don't have a Brave key either, discovery falls through directly to DuckDuckGo (no key required, no quota).
+
+**New `serai doctor` command:** Run `python doctor.py` to validate your Notion DB schema and write permissions before kicking off a long pipeline. Doctor also auto-runs at the start of `run_company_discovery.py` and `eval_llm_scoring.py`, so config issues surface in seconds rather than hours.
+
+---
+
 ## How Serai is different from other AI job tools
 
 Serai is not an application tool. It's a company evaluation tool.

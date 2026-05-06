@@ -311,46 +311,51 @@ filters:
   
   # Geographic filtering
   geo:
-    # Local region matches (prefer remote, but will consider)
-    local_region_terms:
-      - "seattle"
-      - "seattle, wa"
-      - "san francisco"
-      - "bay area"
-      - "sf"
-    
     # Remote-friendly terms (prefer these)
     remote_positive_terms:
       - "remote"
       - "work from home"
       - "distributed"
       - "anywhere"
-    
-    # Broad pass terms (US-wide is acceptable)
-    remote_broad_pass_terms:
-      - "united states"
-      - "usa"
-      - "us-only"
-    
-    # Restricted regions (skip if mentioned)
-    remote_restricted_terms:
-      - "emea"
-      - "europe only"
-      - "uk only"
-      - "apac only"
-      - "canada"
-    
-    # Non-local cities to reject (unless remote-friendly)
-    non_local_city_terms:
-      - "new york"
-      - "austin"
-      - "los angeles"
-      - "london"
-    
+
     # Hybrid mentions (slightly less preferred, but OK)
     hybrid_terms:
       - "hybrid"
       - "flexible"
-    
+
     # Regex pattern for splitting location fields
     location_split_pattern: "[;/|]|\\s+or\\s+"
+
+    # The home_region block holds every geo term tied to where you live/work.
+    # NON-US USERS: override this for your region. See examples/config.example.sydney.yaml.
+    home_region:
+      name: "Seattle / Bay Area"
+
+      # Cities/regions that count as "local"
+      local_terms:
+        - "seattle"
+        - "seattle, wa"
+        - "san francisco"
+        - "bay area"
+        - "sf"
+
+      # Regions where remote work is compatible
+      remote_compatible_regions:
+        - "united states"
+        - "usa"
+        - "us-only"
+
+      # Regions where remote is restricted (skip if mentioned)
+      remote_restricted_regions:
+        - "emea"
+        - "europe only"
+        - "uk only"
+        - "apac only"
+        - "canada"
+
+      # Cities to hard-reject (unless explicitly remote-friendly)
+      non_local_terms:
+        - "new york"
+        - "austin"
+        - "los angeles"
+        - "london"

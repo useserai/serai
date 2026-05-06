@@ -316,51 +316,12 @@ filters:
 
   # Geographic filtering
   geo:
-    # Local region matches
-    local_region_terms:
-      - "san francisco"
-      - "sf, ca"
-      - "san jose"
-      - "santa clara"
-      - "mountain view"
-      - "palo alto"
-      - "menlo park"
-      - "redwood city"
-      - "sunnyvale"
-      - "bay area"
-
     # Remote-friendly terms
     remote_positive_terms:
       - "remote"
       - "work from home"
       - "distributed"
       - "anywhere"
-
-    # Broad pass terms
-    remote_broad_pass_terms:
-      - "united states"
-      - "usa"
-      - "us-only"
-      - "california"
-
-    # Restricted regions (skip if mentioned)
-    remote_restricted_terms:
-      - "emea"
-      - "europe"
-      - "india"
-      - "canada"
-      - "uk"
-      - "apac"
-
-    # Non-local cities to reject (unless remote-friendly)
-    non_local_city_terms:
-      - "new york"
-      - "seattle"
-      - "austin"
-      - "boston"
-      - "chicago"
-      - "los angeles"
-      - "london"
 
     # Hybrid mentions
     hybrid_terms:
@@ -369,3 +330,47 @@ filters:
 
     # Regex pattern for splitting location fields
     location_split_pattern: "[;/|]|\\s+or\\s+"
+
+    # The home_region block holds every geo term tied to where you live/work.
+    # NON-US USERS: override this for your region. See examples/config.example.sydney.yaml.
+    home_region:
+      name: "Bay Area"
+
+      # Cities/regions that count as "local"
+      local_terms:
+        - "san francisco"
+        - "sf, ca"
+        - "san jose"
+        - "santa clara"
+        - "mountain view"
+        - "palo alto"
+        - "menlo park"
+        - "redwood city"
+        - "sunnyvale"
+        - "bay area"
+
+      # Regions where remote work is compatible
+      remote_compatible_regions:
+        - "united states"
+        - "usa"
+        - "us-only"
+        - "california"
+
+      # Regions where remote is restricted (skip if mentioned)
+      remote_restricted_regions:
+        - "emea"
+        - "europe"
+        - "india"
+        - "canada"
+        - "uk"
+        - "apac"
+
+      # Cities to hard-reject (unless explicitly remote-friendly)
+      non_local_terms:
+        - "new york"
+        - "seattle"
+        - "austin"
+        - "boston"
+        - "chicago"
+        - "los angeles"
+        - "london"

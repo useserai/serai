@@ -224,12 +224,56 @@ def get_discovery_config() -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def get_filter_config() -> Dict[str, Any]:
-    """Returns filter config matching the shape of DEFAULT_JOB_FILTER."""
+    """Returns filter config matching the shape of DEFAULT_JOB_FILTER.
+
+    Geo schema: prefer filters.geo.home_region (nested). For backward compat,
+    fall back to legacy flat keys (filters.geo.local_region_terms, etc.) and
+    map them into home_region.
+    """
+    from job_filter_config import DEFAULT_JOB_FILTER
+
     cfg = _get_config()
     filters = cfg.get("filters", {})
     title = filters.get("title", {})
     comp = filters.get("compensation", {})
     geo = filters.get("geo", {})
+
+    # Build home_region: prefer nested config, fall back to legacy flat keys.
+    default_home = DEFAULT_JOB_FILTER["home_region"]
+    raw_home = geo.get("home_region")
+    if isinstance(raw_home, dict):
+        home_region = {
+            "name": raw_home.get("name", default_home["name"]),
+            "local_terms": raw_home.get("local_terms", []) or geo.get("local_region_terms", []),
+            "remote_compatible_regions": raw_home.get("remote_compatible_regions", []) or geo.get("remote_broad_pass_terms", []),
+            "remote_restricted_regions": raw_home.get("remote_restricted_regions", []) or geo.get("remote_restricted_terms", []),
+            "non_local_terms": raw_home.get("non_local_terms", []) or geo.get("non_local_city_terms", []),
+            "description_location_reject_phrases": raw_home.get("description_location_reject_phrases", []) or geo.get("description_location_reject_phrases", []),
+        }
+    else:
+        # Legacy flat keys only — emit a one-time deprecation note in non-test runs.
+        legacy_present = any(
+            geo.get(k) for k in (
+                "local_region_terms",
+                "remote_broad_pass_terms",
+                "remote_restricted_terms",
+                "non_local_city_terms",
+                "description_location_reject_phrases",
+            )
+        )
+        if legacy_present:
+            print(
+                "[config_loader] DEPRECATION: filters.geo uses legacy flat keys; "
+                "migrate to filters.geo.home_region (see examples/config.example.sydney.yaml)."
+            )
+        home_region = {
+            "name": default_home["name"],
+            "local_terms": geo.get("local_region_terms", []),
+            "remote_compatible_regions": geo.get("remote_broad_pass_terms", []),
+            "remote_restricted_regions": geo.get("remote_restricted_terms", []),
+            "non_local_terms": geo.get("non_local_city_terms", []),
+            "description_location_reject_phrases": geo.get("description_location_reject_phrases", []),
+        }
 
     return {
         "target_titles": title.get("target", []),
@@ -237,16 +281,12 @@ def get_filter_config() -> Dict[str, Any]:
         "too_junior_words": title.get("too_junior", []),
         "too_senior_words": title.get("too_senior", []),
         "negative_words": title.get("negative", []),
-        "local_region_terms": geo.get("local_region_terms", []),
         "remote_positive_terms": geo.get("remote_positive_terms", []),
-        "remote_broad_pass_terms": geo.get("remote_broad_pass_terms", []),
-        "remote_restricted_terms": geo.get("remote_restricted_terms", []),
-        "non_local_city_terms": geo.get("non_local_city_terms", []),
         "hybrid_terms": geo.get("hybrid_terms", []),
-        "description_location_reject_phrases": geo.get("description_location_reject_phrases", []),
         "location_split_pattern": geo.get("location_split_pattern", r"[;/|]|\s+\|\s+|\s+or\s+"),
         "min_acceptable_max_comp": comp.get("min_acceptable_max", 0),
         "unknown_bucket_exclude": filters.get("unknown_bucket_exclude", []),
+        "home_region": home_region,
     }
 
 
