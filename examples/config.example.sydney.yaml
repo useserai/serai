@@ -87,6 +87,13 @@ filters:
     home_region:
       name: "Sydney"
 
+      # search_terms get appended to discovery search queries to bias Brave results
+      # toward your region. Critical for non-US users — without this, Brave's default
+      # ranking surfaces mostly US results even when the rest of your config is local.
+      search_terms:
+        - "sydney"
+        - "australia"
+
       # Cities/regions that count as "local" (preferred)
       local_terms:
         - "sydney"

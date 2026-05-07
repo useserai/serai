@@ -244,6 +244,7 @@ def get_filter_config() -> Dict[str, Any]:
     if isinstance(raw_home, dict):
         home_region = {
             "name": raw_home.get("name", default_home["name"]),
+            "search_terms": raw_home.get("search_terms", []),
             "local_terms": raw_home.get("local_terms", []) or geo.get("local_region_terms", []),
             "remote_compatible_regions": raw_home.get("remote_compatible_regions", []) or geo.get("remote_broad_pass_terms", []),
             "remote_restricted_regions": raw_home.get("remote_restricted_regions", []) or geo.get("remote_restricted_terms", []),
@@ -268,6 +269,7 @@ def get_filter_config() -> Dict[str, Any]:
             )
         home_region = {
             "name": default_home["name"],
+            "search_terms": [],
             "local_terms": geo.get("local_region_terms", []),
             "remote_compatible_regions": geo.get("remote_broad_pass_terms", []),
             "remote_restricted_regions": geo.get("remote_restricted_terms", []),

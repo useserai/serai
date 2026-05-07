@@ -26,6 +26,7 @@ DISCOVERED_COMPANIES_FILE = Path("discovered_companies.json")
 
 DISCOVERY_RECHECK_DAYS = 14
 DISCOVERY_RESULT_COUNT = 20
+MAX_DISCOVERY_QUERIES = 100  # cap on total Brave queries per run; protects free-tier credits
 
 DISCOVERY_DOMAINS = [
     {
@@ -63,8 +64,39 @@ def save_discovered_companies(data: dict) -> None:
     )
 
 
-def build_search_queries(patterns: list, broad_sweep_titles: list) -> list:
+def build_search_queries(
+    patterns: list,
+    broad_sweep_titles: list,
+    region_search_terms: list = None,
+) -> list:
+    """Build Brave queries. When region_search_terms is non-empty, generate region-augmented
+    variants alongside the originals so non-US users get region-relevant results surfaced
+    above the US-default Brave ranking. Total queries capped at MAX_DISCOVERY_QUERIES."""
+    if region_search_terms is None:
+        region_search_terms = []
+
     queries = []
+
+    def _emit(query_text, source, mode, query_mode, seed_title):
+        queries.append(
+            {
+                "query": query_text,
+                "source": source,
+                "domain_mode": mode,
+                "query_mode": query_mode,
+                "seed_title": seed_title,
+            }
+        )
+
+    def _emit_with_region_variants(base_query, source, mode, query_mode, seed_title):
+        # Always emit the original (US-friendly remote roles still surface).
+        _emit(base_query, source, mode, query_mode, seed_title)
+        # Then emit one variant per region term.
+        for region in region_search_terms:
+            region = (region or "").strip()
+            if not region:
+                continue
+            _emit(f'{base_query} {region}', source, mode, query_mode, seed_title)
 
     for pattern in patterns:
         for title in pattern.get("titles", []):
@@ -73,26 +105,16 @@ def build_search_queries(patterns: list, broad_sweep_titles: list) -> list:
                 continue
 
             for domain_cfg in DISCOVERY_DOMAINS:
-                queries.append(
-                    {
-                        "query": f'site:{domain_cfg["domain"]} "{clean_title}"',
-                        "source": domain_cfg["source"],
-                        "domain_mode": domain_cfg["mode"],
-                        "query_mode": "precise",
-                        "seed_title": clean_title,
-                    }
+                base = f'site:{domain_cfg["domain"]} "{clean_title}"'
+                _emit_with_region_variants(
+                    base, domain_cfg["source"], domain_cfg["mode"], "precise", clean_title
                 )
 
     for title in broad_sweep_titles:
         for domain_cfg in DISCOVERY_DOMAINS:
-            queries.append(
-                {
-                    "query": f'site:{domain_cfg["domain"]} "{title}"',
-                    "source": domain_cfg["source"],
-                    "domain_mode": domain_cfg["mode"],
-                    "query_mode": "broad",
-                    "seed_title": title,
-                }
+            base = f'site:{domain_cfg["domain"]} "{title}"'
+            _emit_with_region_variants(
+                base, domain_cfg["source"], domain_cfg["mode"], "broad", title
             )
 
     seen = set()
@@ -104,6 +126,15 @@ def build_search_queries(patterns: list, broad_sweep_titles: list) -> list:
             continue
         seen.add(key)
         deduped.append(item)
+
+    if len(deduped) > MAX_DISCOVERY_QUERIES:
+        print(
+            f"[discovery] capping queries from {len(deduped)} to {MAX_DISCOVERY_QUERIES} "
+            f"(MAX_DISCOVERY_QUERIES) to protect Brave credits"
+        )
+        deduped = deduped[:MAX_DISCOVERY_QUERIES]
+    else:
+        print(f"[discovery] {len(deduped)} queries to run (cap: {MAX_DISCOVERY_QUERIES})")
 
     return deduped
 
@@ -284,7 +315,9 @@ def workday_active_key(candidate: dict) -> tuple:
 
 
 def collect_board_candidates(patterns: list, broad_sweep_titles: list) -> list:
-    query_specs = build_search_queries(patterns, broad_sweep_titles)
+    import config_loader
+    region_search_terms = config_loader.get_filter_config().get("home_region", {}).get("search_terms", [])
+    query_specs = build_search_queries(patterns, broad_sweep_titles, region_search_terms)
     candidates = []
     seen = set()
 

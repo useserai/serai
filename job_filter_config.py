@@ -71,6 +71,10 @@ DEFAULT_JOB_FILTER = {
     # See examples/config.example.sydney.yaml for a non-US example.
     "home_region": {
         "name": "Bay Area",
+        # search_terms get appended to discovery search queries to bias Brave results
+        # toward your region (e.g., ["bay area", "san francisco"] for SF, ["sydney", "australia"]
+        # for Sydney). Empty list = no region augmentation (US-shaped default behavior).
+        "search_terms": [],
         "local_terms": [
             "san francisco",
             "sf, ca",
@@ -183,6 +187,7 @@ def _merge_home_region(raw_home_region, base_home_region: dict) -> dict:
         home["name"] = raw_home_region["name"].strip()
 
     for nested_key in (
+        "search_terms",
         "local_terms",
         "remote_compatible_regions",
         "remote_restricted_regions",
