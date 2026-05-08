@@ -223,6 +223,24 @@ def get_discovery_config() -> Dict[str, Any]:
 # Public API: filter config
 # ---------------------------------------------------------------------------
 
+def get_max_discovery_queries() -> int:
+    """Read discovery.max_queries from config.yaml. Defaults to 100 if missing or invalid.
+    Caps total Brave queries per discovery run to protect free-tier credits."""
+    cfg = _get_config()
+    discovery = cfg.get("discovery", {}) or {}
+    val = discovery.get("max_queries")
+    if isinstance(val, int) and val > 0:
+        return val
+    if isinstance(val, str):
+        try:
+            parsed = int(val)
+            if parsed > 0:
+                return parsed
+        except ValueError:
+            pass
+    return 100
+
+
 def get_filter_config() -> Dict[str, Any]:
     """Returns filter config matching the shape of DEFAULT_JOB_FILTER.
 

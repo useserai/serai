@@ -110,15 +110,28 @@ def determine_company_status(item: dict, company_result: dict) -> str:
     ):
         return "watchlist_with_adjacent_roles"
 
+    # High-scoring companies (>= WATCHLIST_THRESHOLD) get watchlist treatment even without
+    # surfaced roles. Brave's role surface for any single run is incomplete; a company worth
+    # monitoring shouldn't get dropped just because no role matched today's search results.
+    # eval_llm_scoring will pick up roles when they appear.
+    if company_score >= WATCHLIST_THRESHOLD:
+        return "watchlist_company_only"
+
     return "rejected_low_company_fit"
 
 
 def maybe_promote_company(item: dict, company_result: dict, status: str) -> bool:
+    # promoted_* companies are added to active_companies.json AND get Notion writes for direct matches.
+    # watchlist_* companies are added to active_companies.json (for daily monitoring, since they're
+    # likely to hire soon) but do NOT get Notion writes — eval_llm_scoring.py will write them later
+    # when actual matching roles surface.
     promotable_statuses = {
         "promoted_to_active",
         "promoted_to_active_company_only",
         "promoted_to_active_with_strong_roles",
         "promoted_to_active_with_adjacent_roles",
+        "watchlist_company_only",
+        "watchlist_with_adjacent_roles",
     }
 
     if status not in promotable_statuses:
@@ -246,8 +259,10 @@ def process_ats_company_discovery(
                 f"score={company_score} status={status}"
             )
 
-        # Per-company Notion writes: only for promoted or watchlist companies (skip rejected)
-        if status.startswith(("promoted_", "watchlist_")):
+        # Per-company Notion writes: only for promoted companies (with direct matches).
+        # Watchlist companies are added to active_companies.json instead, so eval_llm_scoring
+        # can pick up their roles when they hire.
+        if status.startswith("promoted_"):
             for match in item.get("direct_matches", []):
                 try:
                     notion_payload = build_discovery_notion_payload(match, company_result, company_slug)

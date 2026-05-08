@@ -11,6 +11,8 @@ from company_registry import COMPANY_REGISTRY
 from normalize import (
     normalize_job,
     extract_comp_from_greenhouse_detail,
+    extract_workable_detail_fields,
+    extract_smartrecruiters_detail_fields,
     extract_workday_detail_fields,
     fill_missing_comp,
     format_compensation,
@@ -181,6 +183,28 @@ def main():
                         if comp_min is not None or comp_max is not None:
                             job["comp_min"] = comp_min
                             job["comp_max"] = comp_max
+
+                    elif company_config["source"] == "workable":
+                        job_detail = fetch_job_detail_for_company(company_config, job["source_job_id"])
+                        detail_fields = extract_workable_detail_fields(job_detail)
+                        if detail_fields["description"]:
+                            job["description"] = detail_fields["description"]
+                            job["job_description"] = detail_fields["description"]
+                        if detail_fields["comp_min"] is not None or detail_fields["comp_max"] is not None:
+                            job["comp_min"] = detail_fields["comp_min"]
+                            job["comp_max"] = detail_fields["comp_max"]
+
+                    elif company_config["source"] == "smartrecruiters":
+                        job_detail = fetch_job_detail_for_company(company_config, job["source_job_id"])
+                        detail_fields = extract_smartrecruiters_detail_fields(job_detail)
+                        if detail_fields["description"]:
+                            job["description"] = detail_fields["description"]
+                            job["job_description"] = detail_fields["description"]
+                        if detail_fields["comp_min"] is not None or detail_fields["comp_max"] is not None:
+                            job["comp_min"] = detail_fields["comp_min"]
+                            job["comp_max"] = detail_fields["comp_max"]
+                        if detail_fields["url"] and not job.get("url"):
+                            job["url"] = detail_fields["url"]
 
                     elif company_config["source"] == "workday":
                         job_detail = fetch_job_detail_for_company(company_config, job["source_job_id"])

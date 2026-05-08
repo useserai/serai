@@ -26,7 +26,7 @@ DISCOVERED_COMPANIES_FILE = Path("discovered_companies.json")
 
 DISCOVERY_RECHECK_DAYS = 14
 DISCOVERY_RESULT_COUNT = 20
-MAX_DISCOVERY_QUERIES = 100  # cap on total Brave queries per run; protects free-tier credits
+DEFAULT_MAX_DISCOVERY_QUERIES = 100  # default cap on total Brave queries per run; override via config.yaml's discovery.max_queries
 
 DISCOVERY_DOMAINS = [
     {
@@ -37,6 +37,21 @@ DISCOVERY_DOMAINS = [
     {
         "source": "ashby",
         "domain": "jobs.ashbyhq.com",
+        "mode": "board",
+    },
+    {
+        "source": "lever",
+        "domain": "jobs.lever.co",
+        "mode": "board",
+    },
+    {
+        "source": "workable",
+        "domain": "apply.workable.com",
+        "mode": "board",
+    },
+    {
+        "source": "smartrecruiters",
+        "domain": "jobs.smartrecruiters.com",
         "mode": "board",
     },
     {
@@ -127,14 +142,22 @@ def build_search_queries(
         seen.add(key)
         deduped.append(item)
 
-    if len(deduped) > MAX_DISCOVERY_QUERIES:
+    # Cap is config-driven: read filters.geo.discovery.max_queries from config.yaml,
+    # defaulting to DEFAULT_MAX_DISCOVERY_QUERIES if unset.
+    try:
+        import config_loader
+        max_queries = config_loader.get_max_discovery_queries()
+    except Exception:
+        max_queries = DEFAULT_MAX_DISCOVERY_QUERIES
+
+    if len(deduped) > max_queries:
         print(
-            f"[discovery] capping queries from {len(deduped)} to {MAX_DISCOVERY_QUERIES} "
-            f"(MAX_DISCOVERY_QUERIES) to protect Brave credits"
+            f"[discovery] capping queries from {len(deduped)} to {max_queries} "
+            f"(discovery.max_queries) to protect Brave credits"
         )
-        deduped = deduped[:MAX_DISCOVERY_QUERIES]
+        deduped = deduped[:max_queries]
     else:
-        print(f"[discovery] {len(deduped)} queries to run (cap: {MAX_DISCOVERY_QUERIES})")
+        print(f"[discovery] {len(deduped)} queries to run (cap: {max_queries})")
 
     return deduped
 
@@ -172,6 +195,43 @@ def extract_board_candidate(result: dict) -> Optional[dict]:
             "board_token": token,
             "company_slug": token.lower(),
             "board_url": f"https://jobs.ashbyhq.com/{token}",
+            "example_search_url": url,
+        }
+
+    if "lever.co" in host and host.startswith("jobs.lever.co"):
+        if not parts:
+            return None
+        token = parts[0]
+        return {
+            "source": "lever",
+            "board_token": token,
+            "company_slug": token.lower(),
+            "board_url": f"https://jobs.lever.co/{token}",
+            "example_search_url": url,
+        }
+
+    if "workable.com" in host and host.startswith("apply.workable.com"):
+        if not parts:
+            return None
+        token = parts[0]
+        return {
+            "source": "workable",
+            "board_token": token,
+            "company_slug": token.lower(),
+            "board_url": f"https://apply.workable.com/{token}",
+            "example_search_url": url,
+        }
+
+    if "smartrecruiters.com" in host and host.startswith("jobs.smartrecruiters.com"):
+        if not parts:
+            return None
+        # SmartRecruiters API is case-sensitive on the company slug — preserve original case in board_token.
+        token = parts[0]
+        return {
+            "source": "smartrecruiters",
+            "board_token": token,
+            "company_slug": token.lower(),
+            "board_url": f"https://jobs.smartrecruiters.com/{token}",
             "example_search_url": url,
         }
 
@@ -517,9 +577,10 @@ def gather_company_evidence(
             is_adjacent = looks_adjacent(job.get("title", ""), title_score, adjacent_title_keywords)
             job_detail = None
 
-            # Fetch per-job Greenhouse details only for candidates we'll evaluate downstream
-            # (direct or adjacent). Big boards (e.g. SpaceX with 1,000+ jobs and ~10 matching
-            # titles) burned ~5 minutes per board on detail fetches for jobs we discard.
+            # Fetch per-job details only for candidates we'll evaluate downstream
+            # (direct or adjacent). Big boards burned ~5 minutes on detail fetches for
+            # jobs we discard immediately. Greenhouse needs detail for comp; Workable
+            # needs detail for full description (widget API is metadata-only).
             if (is_passed or is_adjacent) and company_config["source"] == "greenhouse":
                 try:
                     job_detail = fetch_job_detail_for_company(company_config, job["source_job_id"])
@@ -527,6 +588,36 @@ def gather_company_evidence(
                     if comp_min is not None or comp_max is not None:
                         job["comp_min"] = comp_min
                         job["comp_max"] = comp_max
+                except Exception:
+                    job_detail = None
+
+            elif (is_passed or is_adjacent) and company_config["source"] == "workable":
+                try:
+                    from normalize import extract_workable_detail_fields
+                    job_detail = fetch_job_detail_for_company(company_config, job["source_job_id"])
+                    detail_fields = extract_workable_detail_fields(job_detail)
+                    if detail_fields["description"]:
+                        job["description"] = detail_fields["description"]
+                        job["job_description"] = detail_fields["description"]
+                    if detail_fields["comp_min"] is not None or detail_fields["comp_max"] is not None:
+                        job["comp_min"] = detail_fields["comp_min"]
+                        job["comp_max"] = detail_fields["comp_max"]
+                except Exception:
+                    job_detail = None
+
+            elif (is_passed or is_adjacent) and company_config["source"] == "smartrecruiters":
+                try:
+                    from normalize import extract_smartrecruiters_detail_fields
+                    job_detail = fetch_job_detail_for_company(company_config, job["source_job_id"])
+                    detail_fields = extract_smartrecruiters_detail_fields(job_detail)
+                    if detail_fields["description"]:
+                        job["description"] = detail_fields["description"]
+                        job["job_description"] = detail_fields["description"]
+                    if detail_fields["comp_min"] is not None or detail_fields["comp_max"] is not None:
+                        job["comp_min"] = detail_fields["comp_min"]
+                        job["comp_max"] = detail_fields["comp_max"]
+                    if detail_fields["url"] and not job.get("url"):
+                        job["url"] = detail_fields["url"]
                 except Exception:
                     job_detail = None
 

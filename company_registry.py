@@ -13,7 +13,7 @@ def _normalize_company_record(record: dict) -> dict:
     if not company_slug:
         raise ValueError(f"Invalid company record missing company_slug: {record}")
 
-    if source not in {"greenhouse", "ashby", "workday"}:
+    if source not in {"greenhouse", "ashby", "lever", "workable", "smartrecruiters", "workday"}:
         raise ValueError(f"Invalid or unsupported source for {company_slug}: {source}")
 
     normalized = {
@@ -22,7 +22,7 @@ def _normalize_company_record(record: dict) -> dict:
         "enabled": enabled,
     }
 
-    if source in {"greenhouse", "ashby"}:
+    if source in {"greenhouse", "ashby", "lever", "workable", "smartrecruiters"}:
         board_token = (record.get("board_token") or "").strip()
         if not board_token:
             raise ValueError(f"Missing board_token for {company_slug}")
