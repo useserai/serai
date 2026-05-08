@@ -10,7 +10,7 @@ I spent 14 years at Atlassian. Six of them stuck at the same level, comfortable,
 
 When I finally did look, I found every job tool was built for volume: more alerts, more applications, faster. That's fine if you need any job. It's the wrong tool if you're looking for the right one.
 
-Serai discovers companies automatically — scanning Greenhouse, Ashby, Workday, and Y Combinator job boards for companies that match your archetype, then scoring each one against weighted dimensions you define. You don't hardcode a list of companies to watch. Serai finds them, evaluates them, and promotes the ones worth tracking. Roles at those companies are scored against your resume with a two-stage evaluation funnel adapted from career-ops methodology. The ones that pass both thresholds land in your Notion board. The rest are filtered out. Most weeks, you see nothing. That's the point.
+Serai discovers companies automatically — scanning Greenhouse, Ashby, Lever, Workable, SmartRecruiters, Workday, and Y Combinator job boards for companies that match your archetype, then scoring each one against weighted dimensions you define. You don't hardcode a list of companies to watch. Serai finds them, evaluates them, and promotes the ones worth tracking. Roles at those companies are scored against your resume with a two-stage evaluation funnel adapted from career-ops methodology. The ones that pass both thresholds land in your Notion board. The rest are filtered out. Most weeks, you see nothing. That's the point.
 
 ---
 
@@ -20,7 +20,7 @@ Serai runs two loops:
 
 **Company discovery** (`run_company_discovery.py`) finds new companies you've never seen:
 
-1. **Discovers** companies across Greenhouse, Ashby, Workday, and YC job boards using configurable search patterns
+1. **Discovers** companies across Greenhouse, Ashby, Lever, Workable, SmartRecruiters, Workday, and YC job boards using configurable search patterns
 2. **Scores each company** against your candidate profile on six dimensions with your chosen weights
 3. **Promotes** companies scoring above threshold into your active registry — no manual curation needed
 4. **Evaluates roles** at discovered companies using a two-stage funnel adapted from career-ops
@@ -339,6 +339,30 @@ python doctor.py                  # validates your Notion setup before any long 
 
 **New `serai doctor` command:** Run `python doctor.py` to validate your Notion DB schema and write permissions before kicking off a long pipeline. Doctor also auto-runs at the start of `run_company_discovery.py` and `eval_llm_scoring.py`, so config issues surface in seconds rather than hours.
 
+**Three new ATS sources (v1.4):** Lever, Workable, and SmartRecruiters are now supported alongside Greenhouse, Ashby, and Workday. Discovery surfaces companies hosted on these platforms via Brave queries (`site:jobs.lever.co`, `site:apply.workable.com`, `site:jobs.smartrecruiters.com`). Workable descriptions and salary come from the per-job markdown endpoint that Workable publishes for LLM/SEO crawlers — clean text content, no scraping required.
+
+**Region-aware Brave search (v1.4) — required action for non-US users:** Add `home_region.search_terms` to your config to bias Brave results toward your region. Without this, Brave's default ranking surfaces mostly US results regardless of your home_region filter setup.
+
+```yaml
+filters:
+  geo:
+    home_region:
+      name: "Sydney"
+      search_terms:
+        - "sydney"
+        - "australia"
+      # ... rest of home_region config (see examples/config.example.sydney.yaml)
+```
+
+**Configurable Brave query cap (v1.4):** Discovery query count is capped to protect free-tier credits (default 100). With six supported ATS sources plus region augmentation, query counts can grow quickly. Override via `discovery.max_queries` in `config.yaml` if you have headroom on your Brave subscription.
+
+```yaml
+discovery:
+  max_queries: 150
+```
+
+**Watchlist semantics (v1.4):** Companies scoring 6.5+ are now consistently added to `active_companies.json` for daily monitoring, even if no roles surfaced from the current Brave search. Previously a high-scoring company with no surfaced roles would be dropped; now it gets watchlist treatment so the recurring scan picks up its roles when they appear later. Notion writes are still reserved for promoted companies (≥7.0 with a direct role match) only.
+
 ---
 
 ## How Serai is different from other AI job tools
@@ -362,10 +386,11 @@ The tools are complementary. Use Serai to find the right companies. Use whatever
 
 ## Roadmap
 
-- **v1.3** Reliability — `serai doctor` preflight, incremental persistence (discovery + active monitoring), per-company Notion writes from discovery, search backend chain (Brave → Tavily → DuckDuckGo), slim Notion schema (current)
-- **v1.4** Alerting (Notion + Slack, email)
-- **v1.5** `bin/generate_profile.py` — upload your resume + describe what you want, get a draft candidate profile to review and edit
-- **v1.6** Historical accuracy tracking — did companies scored 8+ actually break out?
+- **v1.3** Reliability — `serai doctor` preflight, incremental persistence (discovery + active monitoring), per-company Notion writes from discovery, search backend chain (Brave → Tavily → DuckDuckGo), slim Notion schema
+- **v1.4** Coverage expansion — Lever, Workable, SmartRecruiters sources, region-aware Brave queries, watchlist semantics fix, configurable query cap (current)
+- **v1.5** Alerting (Notion + Slack, email)
+- **v1.6** `bin/generate_profile.py` — upload your resume + describe what you want, get a draft candidate profile to review and edit
+- **v1.7** Historical accuracy tracking — did companies scored 8+ actually break out?
 - **v2.0** Hosted version with resume-to-profile onboarding (if demand warrants)
 
 ---
