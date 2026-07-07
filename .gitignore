@@ -39,6 +39,7 @@ discovered_companies.json
 discovered_company_results.csv
 llm_eval_results.csv
 yc_discovered_job_results.csv
+brave_cache.json
 
 #Cursor
 .cursorrules
