@@ -46,22 +46,26 @@ NOTION_DATA_SOURCE_ID = get_data_source_id()
 
 
 def get_job_page_id(source, source_job_id):
-    response = notion.data_sources.query(data_source_id=NOTION_DATA_SOURCE_ID)
+    """Look up an existing Notion page by (Source, Source Job ID).
 
-    for page in response["results"]:
-        props = page["properties"]
-
-        page_source = ""
-        if props.get("Source", {}).get("rich_text"):
-            page_source = props["Source"]["rich_text"][0]["plain_text"]
-
-        page_job_id = ""
-        if props.get("Source Job ID", {}).get("rich_text"):
-            page_job_id = props["Source Job ID"]["rich_text"][0]["plain_text"]
-
-        if page_source == source and page_job_id == source_job_id:
-            return page["id"]
-
+    Server-side filter. The previous version pulled the first 100 pages of the
+    entire data source and iterated in Python — Notion caps query results at 100,
+    so dedup silently broke once the DB grew past that. This filter returns only
+    the matching page(s), independent of DB size.
+    """
+    response = notion.data_sources.query(
+        data_source_id=NOTION_DATA_SOURCE_ID,
+        filter={
+            "and": [
+                {"property": "Source", "rich_text": {"equals": source}},
+                {"property": "Source Job ID", "rich_text": {"equals": str(source_job_id)}},
+            ]
+        },
+        page_size=1,
+    )
+    results = response.get("results", [])
+    if results:
+        return results[0]["id"]
     return None
 
 

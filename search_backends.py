@@ -2,18 +2,57 @@
 Brave 429/422/403/401 (quota/rate/auth) triggers automatic fallover. Tavily is skipped
 if TAVILY_API_KEY is not set. DuckDuckGo is the always-available floor."""
 
+import json
 import os
+import time
+from pathlib import Path
+
 import requests
 
 BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
+
+BRAVE_CACHE_FILE = Path("brave_cache.json")
+BRAVE_CACHE_TTL_SECONDS = 7 * 24 * 3600  # 7 days
 
 
 class BackendUnavailable(Exception):
     """Raised when a backend is unusable (no key, quota exhausted, rate limited)."""
 
 
+def _load_brave_cache() -> dict:
+    if not BRAVE_CACHE_FILE.exists():
+        return {}
+    try:
+        return json.loads(BRAVE_CACHE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_brave_cache(cache: dict) -> None:
+    BRAVE_CACHE_FILE.write_text(
+        json.dumps(cache, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def _brave_cache_key(query: str, count: int) -> str:
+    return f"{query}||count={count}"
+
+
+_BRAVE_CACHE = _load_brave_cache()
+
+
 def brave_search(query: str, count: int) -> list:
+    cache_key = _brave_cache_key(query, count)
+    cached = _BRAVE_CACHE.get(cache_key)
+    now = time.time()
+
+    if cached and (now - cached.get("cached_at", 0) < BRAVE_CACHE_TTL_SECONDS):
+        results = cached["results"]
+        print(f"[search] brave (cached) -> {len(results)} results | {query}")
+        return results
+
     api_key = os.getenv("BRAVE_SEARCH_API_KEY")
     if not api_key:
         raise BackendUnavailable("Brave: no API key set")
@@ -43,16 +82,20 @@ def brave_search(query: str, count: int) -> list:
     response.raise_for_status()
 
     data = response.json()
-    results = data.get("web", {}).get("results", [])
-    return [
+    raw_results = data.get("web", {}).get("results", [])
+    results = [
         {
             "url": r.get("url"),
             "title": r.get("title", "") or "",
             "description": r.get("description", "") or "",
         }
-        for r in results
+        for r in raw_results
         if r.get("url")
     ]
+
+    _BRAVE_CACHE[cache_key] = {"results": results, "cached_at": now}
+    _save_brave_cache(_BRAVE_CACHE)
+    return results
 
 
 def tavily_search(query: str, count: int) -> list:
